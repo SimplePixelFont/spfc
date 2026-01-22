@@ -1,0 +1,15 @@
+[package]
+name = "spfc"
+version = "0.0.1"
+description = "SimplePixelFont Compiler Toolchain"
+repository = "https://github.com/SimplePixelFont/spfc"
+license = "Apache-2.0"
+edition = "2024"
+
+[dependencies]
+write-fonts = "=0.45.0"
+kurbo = "0.13.0"
+bitvec = "1.0.1"
+spf = { git = "https://github.com/SimplePixelFont/spf.rs.git", default-features = false, features = ["std"] }
+anyhow = "1.0.100"
+clap = { version = "4.5.54", features = ["derive"] }
