@@ -2,7 +2,7 @@
 
 A compiler toolchain Command Line Interface (CLI) for SimplePixelFonts (SPFs).
 
-> ![NOTE]
+> [!IMPORTANT]
 > SPFC is experimental software, expect bugs and limited functionality. Regardless, efforts are dedicated to bridging the gap between SPF and the standardized and traditional TrueType Fonts (TTF).
 
 # Usage
