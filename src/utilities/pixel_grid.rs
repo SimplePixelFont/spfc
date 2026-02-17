@@ -11,6 +11,25 @@ pub struct PixelGrid {
 type P = (i32, i32);
 
 impl PixelGrid {
+    pub fn empty(width: usize, height: usize, pixel_size: f64) -> Self {
+        Self {
+            width,
+            height,
+            pixel_size,
+            pixels: vec![vec![false; width]; height],
+        }
+    }
+    pub fn draw_rectangle(&mut self, x: usize, y: usize, width: usize, height: usize) {
+        for offset_x in x..x + width {
+            self.pixels[y][offset_x] = true;
+            self.pixels[y + height - 1][offset_x] = true;
+        }
+        for offset_y in y..y + height {
+            self.pixels[offset_y][x] = true;
+            self.pixels[offset_y][x + width - 1] = true;
+        }
+    }
+
     pub fn to_bezpath(&self, descender_pixels: usize) -> BezPath {
         let ps = self.pixel_size;
         let h = self.height as i32;
