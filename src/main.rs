@@ -67,6 +67,10 @@ fn main() -> Result<()> {
     push_glyf_loca_tables(&mut process)?;
     push_hmtx_table(&mut process)?;
     push_cmap_table(&mut process)?;
+    process.builder.add_raw(
+        write_fonts::types::Tag::new(b"prep"),
+        vec![0xB8, 0x01, 0xFF, 0x85, 0xB0, 0x04, 0x8D],
+    );
 
     let font_data = process.builder.build();
     std::fs::write(&args.output, &font_data)?;
