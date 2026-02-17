@@ -24,6 +24,10 @@ struct Args {
     #[arg(short, long, default_value_t = String::from("SimplePixelFont"))]
     family_name: String,
 
+    /// Version of the font family
+    #[arg(short, long, default_value_t = 1.0)]
+    family_version: f64,
+
     /// Pixel size in font units
     #[arg(short, long, default_value_t = 64)]
     pixel_size: i16,
@@ -41,8 +45,9 @@ fn main() -> Result<()> {
 
     let mut process = Process::default();
     process.family_name = args.family_name;
+    process.family_version = args.family_version;
     process.target_pixel_size = args.pixel_size;
-    process.decender_pixels = args.decender_pixels;
+    process.descender_pixels = args.decender_pixels;
 
     process.pixmap_pairs = create_pixmap_pairs(&layout);
     process.max_pixel_width = max_width(&process.pixmap_pairs);
@@ -53,6 +58,9 @@ fn main() -> Result<()> {
         process.target_pixel_size,
     );
 
+    process.add_required_whitespace(); // seperate validation layer might be needed later.
+    process.is_monospaced = is_monospaced(&process.pixmap_pairs);
+
     push_head_table(&mut process)?;
     push_hhea_table(&mut process)?;
     push_maxp_table(&mut process)?;
@@ -62,11 +70,19 @@ fn main() -> Result<()> {
     push_glyf_loca_tables(&mut process)?;
     push_hmtx_table(&mut process)?;
     push_cmap_table(&mut process)?;
+    process.builder.add_raw(
+        write_fonts::types::Tag::new(b"prep"),
+        vec![0xB8, 0x01, 0xFF, 0x85, 0xB0, 0x04, 0x8D],
+    );
 
     let font_data = process.builder.build();
     std::fs::write(&args.output, &font_data)?;
 
-    println!("Finished writing {} bytes to {}", font_data.len(), args.output);
+    println!(
+        "Finished writing {} bytes to {}",
+        font_data.len(),
+        args.output
+    );
 
     Ok(())
 }

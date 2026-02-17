@@ -32,14 +32,15 @@ spfc --help
 ```
 SimplePixelFont Compiler Toolchain
 
-Usage: spfc.exe [OPTIONS] --input <INPUT>
+Usage: spfc [OPTIONS] --input <INPUT>
 
 Options:
   -i, --input <INPUT>                      Input SimplePixelFont file path
   -o, --output <OUTPUT>                    Output TTF file path [default: output.ttf]
   -f, --family-name <FAMILY_NAME>          Name of the font family [default: SimplePixelFont]
+  -f, --family-version <FAMILY_VERSION>    Version of the font family [default: 1]
   -p, --pixel-size <PIXEL_SIZE>            Pixel size in font units [default: 64]
   -d, --decender-pixels <DECENDER_PIXELS>  Decender size in pixels [default: 0]
   -h, --help                               Print help
   -V, --version                            Print version
-  ```
+```
