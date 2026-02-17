@@ -24,6 +24,10 @@ struct Args {
     #[arg(short, long, default_value_t = String::from("SimplePixelFont"))]
     family_name: String,
 
+    /// Version of the font family
+    #[arg(short, long, default_value_t = 1.0)]
+    family_version: f64,
+
     /// Pixel size in font units
     #[arg(short, long, default_value_t = 64)]
     pixel_size: i16,
@@ -41,6 +45,7 @@ fn main() -> Result<()> {
 
     let mut process = Process::default();
     process.family_name = args.family_name;
+    process.family_version = args.family_version;
     process.target_pixel_size = args.pixel_size;
     process.decender_pixels = args.decender_pixels;
 
@@ -66,7 +71,11 @@ fn main() -> Result<()> {
     let font_data = process.builder.build();
     std::fs::write(&args.output, &font_data)?;
 
-    println!("Finished writing {} bytes to {}", font_data.len(), args.output);
+    println!(
+        "Finished writing {} bytes to {}",
+        font_data.len(),
+        args.output
+    );
 
     Ok(())
 }
