@@ -47,7 +47,7 @@ fn main() -> Result<()> {
     process.family_name = args.family_name;
     process.family_version = args.family_version;
     process.target_pixel_size = args.pixel_size;
-    process.decender_pixels = args.decender_pixels;
+    process.descender_pixels = args.decender_pixels;
 
     process.pixmap_pairs = create_pixmap_pairs(&layout);
     process.max_pixel_width = max_width(&process.pixmap_pairs);

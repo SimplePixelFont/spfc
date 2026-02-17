@@ -21,9 +21,10 @@ pub fn push_head_table(process: &mut Process) -> Result<()> {
     let head = Head {
         units_per_em: process.units_per_em,
         x_min: 0,
-        y_min: 0,
+        y_min: -(process.descender_pixels * process.target_pixel_size),
         x_max: process.max_pixel_width * process.target_pixel_size,
-        y_max: process.units_per_em as i16,
+        y_max: ((process.max_pixel_height - process.descender_pixels) * process.target_pixel_size)
+            as i16,
         mac_style: MacStyle::empty(),
         font_revision: Fixed::from_f64(process.family_version),
         created: LongDateTime::new(mac_timestamp),

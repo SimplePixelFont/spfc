@@ -1,17 +1,20 @@
+use super::Process;
 use anyhow::Result;
 use write_fonts::tables::os2::{Os2, SelectionFlags};
-use super::Process;
-
 
 pub fn push_os2_table(process: &mut Process) -> Result<()> {
+    let ascender =
+        ((process.max_pixel_height - process.descender_pixels) * process.target_pixel_size) as i16;
+    let descender = (process.descender_pixels * process.target_pixel_size) as i16;
+
     let mut os2 = Os2::default();
     os2.x_avg_char_width = process.max_pixel_width * process.target_pixel_size;
     os2.us_weight_class = 400;
     os2.us_width_class = 5;
-    os2.us_win_ascent = process.units_per_em as u16;
-    os2.us_win_descent = process.decender_pixels as u16 * process.target_pixel_size as u16;
-    os2.s_typo_ascender = process.units_per_em as i16;
-    os2.s_typo_descender = process.decender_pixels as i16 * process.target_pixel_size;
+    os2.us_win_ascent = ascender as u16;
+    os2.us_win_descent = descender as u16;
+    os2.s_typo_ascender = ascender;
+    os2.s_typo_descender = -descender;
     os2.s_typo_line_gap = 0;
     os2.sx_height = Some(500);
     os2.s_cap_height = Some(700);

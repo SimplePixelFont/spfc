@@ -15,7 +15,7 @@ pub struct PixmapGlyph {
 }
 
 impl PixmapGlyph {
-    pub fn into_simple_glyph(self, pixel_size: u16) -> SimpleGlyph {
+    pub fn into_simple_glyph(self, pixel_size: u16, descender_pixels: usize) -> SimpleGlyph {
         let pixel_grid = PixelGrid {
             width: self.width as usize,
             height: self.height as usize,
@@ -26,7 +26,7 @@ impl PixmapGlyph {
                 .collect(),
             pixel_size: pixel_size as f64,
         };
-        let bez_path = pixel_grid.to_bezpath();
+        let bez_path = pixel_grid.to_bezpath(descender_pixels);
         let glyph = SimpleGlyph::from_bezpath(&bez_path).unwrap();
         glyph
     }
@@ -74,7 +74,6 @@ pub fn create_pixmap_pairs(layout: &Layout) -> BTreeMap<char, PixmapGlyph> {
             };
 
             if let Some((pixmap_table, pixmap)) = pixmap {
-                //println!("{:?} {:?}", pixmap_table, pixmap);
                 let width = pixmap_table.constant_width.or(pixmap.custom_width).unwrap();
                 let height = pixmap_table
                     .constant_height

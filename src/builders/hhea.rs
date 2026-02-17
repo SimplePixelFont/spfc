@@ -6,9 +6,13 @@ use write_fonts::{
 };
 
 pub fn push_hhea_table(process: &mut Process) -> Result<()> {
+    let ascender =
+        ((process.max_pixel_height - process.descender_pixels) * process.target_pixel_size) as i16;
+    let descender = (process.descender_pixels * process.target_pixel_size) as i16;
+
     let hhea = Hhea {
-        ascender: FWord::new(process.units_per_em as i16),
-        descender: FWord::new(process.decender_pixels * process.target_pixel_size),
+        ascender: FWord::new(ascender),
+        descender: FWord::new(-descender),
         line_gap: FWord::new(0),
         advance_width_max: UfWord::new(
             (process.max_pixel_width + 1) as u16 * process.target_pixel_size as u16,
