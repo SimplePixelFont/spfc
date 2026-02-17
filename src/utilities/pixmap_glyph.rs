@@ -12,6 +12,7 @@ pub struct PixmapGlyph {
     pub width: u8,
     pub height: u8,
     pub pixmap: Vec<bool>,
+    pub left_side_bearing: i16,
 }
 
 impl PixmapGlyph {
@@ -42,6 +43,26 @@ pub fn resolve_pixmap<'a>(
         }
     }
     None
+}
+
+fn calculate_left_bearing(pixels: &[bool], width: usize, height: usize) -> i16 {
+    let mut empty_left_columns = 0;
+    for x in 0..width {
+        let mut column_empty = true;
+        for y in 0..height {
+            if pixels[y * width + x] {
+                column_empty = false;
+                break;
+            }
+        }
+        if column_empty {
+            empty_left_columns += 1;
+        } else {
+            break;
+        }
+    }
+
+    empty_left_columns as i16
 }
 
 pub fn create_pixmap_pairs(layout: &Layout) -> BTreeMap<char, PixmapGlyph> {
@@ -98,6 +119,8 @@ pub fn create_pixmap_pairs(layout: &Layout) -> BTreeMap<char, PixmapGlyph> {
                     pixel_bools.push(byte != 0);
                 }
 
+                let left_side_bearing =
+                    calculate_left_bearing(&pixel_bools, width as usize, height as usize);
                 let character = character.grapheme_cluster.chars().next().unwrap_or('\0');
                 pixmap_pairs.insert(
                     character,
@@ -106,6 +129,7 @@ pub fn create_pixmap_pairs(layout: &Layout) -> BTreeMap<char, PixmapGlyph> {
                         width,
                         height,
                         pixmap: pixel_bools,
+                        left_side_bearing,
                     },
                 );
             }

@@ -37,4 +37,6 @@ pub struct Process<'a> {
     pub family_version: f64,
     pub target_pixel_size: i16,
     pub descender_pixels: i16,
+
+    pub is_monospaced: bool,
 }

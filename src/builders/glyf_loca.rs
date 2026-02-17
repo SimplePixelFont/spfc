@@ -14,8 +14,8 @@ pub fn push_glyf_loca_tables(process: &mut Process) -> Result<()> {
         process.target_pixel_size as f64,
     );
     notdef.draw_rectangle(
-        1,
-        1,
+        0,
+        0,
         process.max_pixel_width as usize - 1,
         process.max_pixel_height as usize - process.descender_pixels as usize - 1,
     );

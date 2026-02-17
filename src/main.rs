@@ -58,6 +58,8 @@ fn main() -> Result<()> {
         process.target_pixel_size,
     );
 
+    process.is_monospaced = is_monospaced(&process.pixmap_pairs);
+
     push_head_table(&mut process)?;
     push_hhea_table(&mut process)?;
     push_maxp_table(&mut process)?;

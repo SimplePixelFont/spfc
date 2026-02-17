@@ -28,6 +28,35 @@ pub fn push_os2_table(process: &mut Process) -> Result<()> {
     os2.ul_unicode_range_2 = 0;
     os2.ul_unicode_range_3 = 0;
     os2.ul_unicode_range_4 = 0;
+
+    if process.is_monospaced {
+        os2.panose_10 = [
+            2, // bFamilyType: Latin Text
+            0, // bSerifStyle: Any
+            5, // bWeight: Book (400 weight)
+            9, // bProportion: Monospaced ← KEY VALUE
+            0, // bContrast: Any
+            0, // bStrokeVariation: Any
+            0, // bArmStyle: Any
+            0, // bLetterform: Any
+            0, // bMidline: Any
+            0, // bXHeight: Any
+        ];
+    } else {
+        os2.panose_10 = [
+            2, // bFamilyType: Latin Text
+            0, // bSerifStyle: Any
+            5, // bWeight: Book (400 weight)
+            3, // bProportion: Modern (proportional) ← KEY VALUE
+            0, // bContrast: Any
+            0, // bStrokeVariation: Any
+            0, // bArmStyle: Any
+            0, // bLetterform: Any
+            0, // bMidline: Any
+            0, // bXHeight: Any
+        ];
+    }
+
     process.builder.add_table(&os2)?;
     Ok(())
 }

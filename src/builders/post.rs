@@ -6,7 +6,7 @@ use write_fonts::{
 };
 
 pub fn push_post_table(process: &mut Process) -> Result<()> {
-    let post = Post {
+    let mut post = Post {
         version: Version16Dot16::VERSION_3_0,
         underline_position: FWord::new(0),
         underline_thickness: FWord::new(process.target_pixel_size),
@@ -17,6 +17,9 @@ pub fn push_post_table(process: &mut Process) -> Result<()> {
         max_mem_type1: 0,
         ..Default::default()
     };
+    if process.is_monospaced {
+        post.is_fixed_pitch = 1;
+    }
     process.builder.add_table(&post)?;
     Ok(())
 }
