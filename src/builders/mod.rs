@@ -40,3 +40,31 @@ pub struct Process<'a> {
 
     pub is_monospaced: bool,
 }
+
+impl Process<'_> {
+    pub fn add_required_whitespace(&mut self) {
+        // Check if SPACE exists
+        let space_advance = if let Some(space_glyph) = self.pixmap_pairs.get(&'\u{0020}') {
+            space_glyph.advance_x
+        } else {
+            self.max_pixel_width as u8
+        };
+
+        // Add NO-BREAK SPACE if missing
+        if !self.pixmap_pairs.contains_key(&'\u{00A0}') {
+            self.pixmap_pairs.insert(
+                '\u{00A0}',
+                PixmapGlyph {
+                    advance_x: space_advance,
+                    width: self.max_pixel_width as u8,
+                    height: self.max_pixel_height as u8,
+                    pixmap: vec![
+                        false;
+                        self.max_pixel_width as usize * self.max_pixel_height as usize
+                    ],
+                    left_side_bearing: 0,
+                },
+            );
+        }
+    }
+}

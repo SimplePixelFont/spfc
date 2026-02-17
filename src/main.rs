@@ -58,6 +58,7 @@ fn main() -> Result<()> {
         process.target_pixel_size,
     );
 
+    process.add_required_whitespace(); // seperate validation layer might be needed later.
     process.is_monospaced = is_monospaced(&process.pixmap_pairs);
 
     push_head_table(&mut process)?;
