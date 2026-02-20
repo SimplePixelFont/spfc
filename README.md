@@ -35,12 +35,28 @@ SimplePixelFont Compiler Toolchain
 Usage: spfc [OPTIONS] --input <INPUT>
 
 Options:
-  -i, --input <INPUT>                      Input SimplePixelFont file path
-  -o, --output <OUTPUT>                    Output TTF file path [default: output.ttf]
-  -f, --family-name <FAMILY_NAME>          Name of the font family [default: SimplePixelFont]
-  -f, --family-version <FAMILY_VERSION>    Version of the font family [default: 1]
-  -p, --pixel-size <PIXEL_SIZE>            Pixel size in font units [default: 64]
-  -d, --decender-pixels <DECENDER_PIXELS>  Decender size in pixels [default: 0]
-  -h, --help                               Print help
-  -V, --version                            Print version
+  -i, --input <INPUT>
+          Input SimplePixelFont file path
+  -o, --output <OUTPUT>
+          Output TTF file path [default: output.ttf]
+  -f, --family-name <FAMILY_NAME>
+          Name of the font family [default: SimplePixelFont]
+  -c, --copyright <COPYRIGHT>
+          Description of the font copyright [default: "Copyright (c) 2026 SimplePixelFont"]
+  -m, --manufacturer <MANUFACTURER>
+          Name of the font manufacturer [default: SimplePixelFont]
+  -v, --vendor-url <VENDOR_URL>
+          URL of the font vendor [default: https://github.com/SimplePixelFont]
+  -l, --license-description <LICENSE_DESCRIPTION>
+          Description of the font license [default: "Licensed under the Apache License, Version 2.0; you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0"]
+  -f, --family-version <FAMILY_VERSION>
+          Version of the font family [default: 1]
+  -p, --pixel-size <PIXEL_SIZE>
+          Pixel size in font units [default: 64]
+  -d, --decender-pixels <DECENDER_PIXELS>
+          Decender size in pixels [default: 0]
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```

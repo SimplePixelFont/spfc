@@ -1,4 +1,4 @@
-use spf::core::layout_from_data;
+use spf::core::{layout_from_data, layout_to_data};
 
 mod builders;
 use builders::*;
@@ -24,8 +24,24 @@ struct Args {
     #[arg(short, long, default_value_t = String::from("SimplePixelFont"))]
     family_name: String,
 
+    /// Description of the font copyright
+    #[arg(short, long, default_value_t = String::from("Copyright (c) 2026 SimplePixelFont"))]
+    copyright: String,
+
+    /// Name of the font manufacturer
+    #[arg(short, long, default_value_t = String::from("SimplePixelFont"))]
+    manufacturer: String,
+
+    /// URL of the font vendor
+    #[arg(short, long, default_value_t = String::from("https://github.com/SimplePixelFont"))]
+    vendor_url: String,
+
+    /// Description of the font license
+    #[arg(short, long, default_value_t = String::from("Licensed under the Apache License, Version 2.0; you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0"))]
+    license_description: String,
+
     /// Version of the font family
-    #[arg(short, long, default_value_t = 1.0)]
+    #[arg(short, long, default_value_t = 1.00)]
     family_version: f64,
 
     /// Pixel size in font units
@@ -46,6 +62,10 @@ fn main() -> Result<()> {
     let mut process = Process::default();
     process.family_name = args.family_name;
     process.family_version = args.family_version;
+    process.copyright = args.copyright;
+    process.manufacturer = args.manufacturer;
+    process.vendor_url = args.vendor_url;
+    process.license_description = args.license_description;
     process.target_pixel_size = args.pixel_size;
     process.descender_pixels = args.decender_pixels;
 
@@ -58,7 +78,8 @@ fn main() -> Result<()> {
         process.target_pixel_size,
     );
 
-    process.add_required_whitespace(); // seperate validation layer might be needed later.
+    process.add_required_whitespace(); // a seperate validation layer might be needed later. Although really the only character that needs fixing and only if space exists :)
+    process.update_max_points_and_contours();
     process.is_monospaced = is_monospaced(&process.pixmap_pairs);
 
     push_head_table(&mut process)?;
@@ -70,9 +91,19 @@ fn main() -> Result<()> {
     push_glyf_loca_tables(&mut process)?;
     push_hmtx_table(&mut process)?;
     push_cmap_table(&mut process)?;
+    push_gasp_table(&mut process)?;
+
     process.builder.add_raw(
         write_fonts::types::Tag::new(b"prep"),
         vec![0xB8, 0x01, 0xFF, 0x85, 0xB0, 0x04, 0x8D],
+    );
+
+    // store raw spf data in a custom table for potential future use. 
+    // This is not necessary for the font to function, but it allows the original data to be preserved inside the font file itself, 
+    // which can be useful to debug.
+    process.builder.add_raw(
+        write_fonts::types::Tag::new(b"bspf"),
+        layout_to_data(&layout).unwrap(),
     );
 
     let font_data = process.builder.build();

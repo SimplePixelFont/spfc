@@ -12,6 +12,18 @@ pub fn push_hmtx_table(process: &mut Process) -> Result<()> {
         side_bearing: 0,
     });
 
+    // .null
+    hmtx_metrics.push(LongMetric {
+        advance: 0,
+        side_bearing: 0,
+    });
+
+    // nonmarkingreturn
+    hmtx_metrics.push(LongMetric {
+        advance: 0,
+        side_bearing: 0,
+    });
+
     for (_, pixmap) in &process.pixmap_pairs {
         hmtx_metrics.push(LongMetric {
             advance: pixmap.advance_x as u16 * process.target_pixel_size as u16 + letter_spacing,
