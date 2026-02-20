@@ -1,3 +1,5 @@
+use crate::builders::AUTOINSERTED_CHARS_COUNT;
+
 use super::Process;
 use anyhow::Result;
 use write_fonts::tables::cmap::{Cmap, CmapSubtable, EncodingRecord, PlatformId};
@@ -36,7 +38,7 @@ pub fn push_cmap_table(process: &mut Process) -> Result<()> {
     let mut deltas = vec![];
     let mut offsets = vec![];
 
-    let mut current_glyph_index = 1u16; // Start after .notdef
+    let mut current_glyph_index = AUTOINSERTED_CHARS_COUNT;
 
     for (start_char, end_char) in segments.iter() {
         end_codes.push(*end_char);
@@ -64,7 +66,7 @@ pub fn push_cmap_table(process: &mut Process) -> Result<()> {
         encoding_records: vec![
             EncodingRecord {
                 platform_id: PlatformId::Unicode,
-                encoding_id: 4,
+                encoding_id: 3,
                 subtable: cmap_subtable.clone().into(),
             },
             EncodingRecord {

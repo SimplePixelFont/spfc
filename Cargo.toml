@@ -13,3 +13,4 @@ bitvec = "1.0.1"
 spf = { git = "https://github.com/SimplePixelFont/spf.rs.git", default-features = false, features = ["std"] }
 anyhow = "1.0.100"
 clap = { version = "4.5.54", features = ["derive"] }
+chrono = "0.4.43"

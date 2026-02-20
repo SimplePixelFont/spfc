@@ -2,7 +2,7 @@ use super::Process;
 use anyhow::Result;
 use std::time::{SystemTime, UNIX_EPOCH};
 use write_fonts::{
-    tables::head::{Head, MacStyle},
+    tables::head::{Flags, Head, MacStyle},
     types::{Fixed, LongDateTime},
 };
 
@@ -29,6 +29,8 @@ pub fn push_head_table(process: &mut Process) -> Result<()> {
         font_revision: Fixed::from_f64(process.family_version),
         created: LongDateTime::new(mac_timestamp),
         modified: LongDateTime::new(mac_timestamp),
+        lowest_rec_ppem: 8,
+        flags: Flags::BASELINE_AT_Y_0 | Flags::LSB_AT_X_0 | Flags::FORCE_INTEGER_PPEM,
         ..Default::default()
     };
     process.builder.add_table(&head)?;

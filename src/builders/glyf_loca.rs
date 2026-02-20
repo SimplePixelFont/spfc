@@ -2,6 +2,7 @@ use crate::utilities::PixelGrid;
 
 use super::Process;
 use anyhow::Result;
+use kurbo::BezPath;
 use write_fonts::tables::glyf::{GlyfLocaBuilder, SimpleGlyph};
 
 pub fn push_glyf_loca_tables(process: &mut Process) -> Result<()> {
@@ -23,11 +24,19 @@ pub fn push_glyf_loca_tables(process: &mut Process) -> Result<()> {
         SimpleGlyph::from_bezpath(&notdef.to_bezpath(process.descender_pixels as usize)).unwrap();
     glyf_builder.add_glyph(&notdef)?;
 
+    let null_glyph = SimpleGlyph::from_bezpath(&BezPath::new()).unwrap();
+    glyf_builder.add_glyph(&null_glyph)?;
+
+    // Glyph 2: nonmarkingreturn (empty glyph for tab/return)
+    let nonmarkingreturn = SimpleGlyph::from_bezpath(&BezPath::new()).unwrap();
+    glyf_builder.add_glyph(&nonmarkingreturn)?;
+
     for (_, pixmap) in &process.pixmap_pairs {
-        glyf_builder.add_glyph(&pixmap.clone().into_simple_glyph(
+        let glyph = pixmap.clone().into_simple_glyph(
             process.target_pixel_size as u16,
             process.descender_pixels as usize,
-        ))?;
+        );
+        glyf_builder.add_glyph(&glyph)?;
     }
 
     let glyf = glyf_builder.build();
