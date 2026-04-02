@@ -23,7 +23,7 @@ ENV["VERSION"] = "0.0.1"
 
 for plat in jl_platforms
     try
-        run(`sh -c "BINARYBUILDER_RUNNER='privileged' BINARYBUILDER_AUTOMATIC_APPLE=true julia -- ./.ci/build_tarballs.jl $platform"`)
+        run(`sh -c "BINARYBUILDER_RUNNER='privileged' BINARYBUILDER_AUTOMATIC_APPLE=true julia -- ./.ci/build_tarballs.jl $plat"`)
         
         plat_clean = replace(plat, "'" => "")
         
