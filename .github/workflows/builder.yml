@@ -1,0 +1,87 @@
+name: builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "The tag name (e.g., cli-v1.0.0, target-ttf-v1.0.0, abi-v1.0.0)"
+        required: true
+      asset_folder:
+        description: "Path to the folder containing assets"
+        required: true
+        default: "artifacts"
+
+jobs:
+  builder:
+    name: Upload release assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Metadata from Tag
+        id: parse_tag
+        run: |
+          SHA=$(git rev-list -n 1 ${{ inputs.tag_name }})
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          
+          TAG=${{ inputs.tag_name }}
+          if [[ "$TAG" == cli-* ]]; then
+            VERSION=$(echo $TAG | sed 's/cli-v//')
+            echo "component=spfc" >> $GITHUB_OUTPUT
+            echo "type=cli" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          elif [[ "$TAG" == target-*-* ]]; then
+            # target-ttf-v1.0.0 -> name=ttf, version=1.0.0
+            PREFIX=$(echo $TAG | awk -F'-v' '{print $1}' | sed 's/target-//')
+            VERSION=$(echo $TAG | awk -F'-v' '{print $2}')
+            echo "component=spfc-target-$PREFIX" >> $GITHUB_OUTPUT
+            echo "type=target" >> $GITHUB_OUTPUT
+            echo "target_name=$PREFIX" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          elif [[ "$TAG" == abi-* ]]; then
+            echo "component=spfc-abi" >> $GITHUB_OUTPUT
+            echo "type=abi" >> $GITHUB_OUTPUT
+          fi
+
+      # ABI Generation
+      - name: Generate ABI Header
+        if: steps.parse_tag.outputs.type == 'abi'
+        run: |
+          mkdir -p ${{ inputs.asset_folder }}
+          cargo install cbindgen
+          cbindgen --crate spfc_abi --output spfc_abi.h --lang c --cpp-compat
+          mv spfc_abi.h ${{ inputs.asset_folder }}/spfc_abi.h
+
+      # Julia setup for Build & Registry Update
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.7"
+
+      # Cross-Compile
+      - name: Build with BinaryBuilder.jl
+        if: steps.parse_tag.outputs.type != 'abi'
+        run: >
+          COMPONENT='${{ steps.parse_tag.outputs.component }}' 
+          TAG_NAME='${{ inputs.tag_name }}' 
+          SHA='${{ steps.parse_tag.outputs.sha }}' 
+          julia -- ./.ci/release.jl
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          files: ${{ inputs.asset_folder }}/*
+
+      # New: Registry Update via Julia
+      - name: Update Registry
+        if: steps.parse_tag.outputs.type == 'target'
+        run: >
+          TARGET_NAME='${{ steps.parse_tag.outputs.target_name }}'
+          VERSION='${{ steps.parse_tag.outputs.version }}'
+          julia -- ./.ci/update_registry.jl
