@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 
 use bitvec::{field::BitField, order::Lsb0, view::BitView};
 use render_spf::{
-    RenderableTexture,
-    cache::{TextureBuilder, generic_update_cache},
+    ColorControl, RenderableTexture, cache::{TextureBuilder, generic_update_cache}
 };
 use spf::core::{Character, Layout, Pixmap, PixmapTable};
 use write_fonts::tables::glyf::SimpleGlyph;
@@ -121,12 +120,14 @@ fn calculate_left_bearing(pixels: &[bool], width: usize, height: usize) -> i16 {
 
 pub fn create_pixmap_pairs(layout: &Layout) -> BTreeMap<char, PixmapGlyph> {
     let mut pixmap_pairs = BTreeMap::new();
+    let mut color_control = ColorControl::with_capacity(layout.color_tables.len());
 
     generic_update_cache(
         &layout.font_tables[0],
         &layout.font_tables[0].fonts[0],
         layout,
         &PixmapGlyphTextureBuilder,
+        &mut color_control,
         |grapheme| grapheme.to_owned().chars().next().unwrap_or('\0'),
         |key, glyph: PixmapGlyph| {
             pixmap_pairs.insert(key, glyph.clone());
