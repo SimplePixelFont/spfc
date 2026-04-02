@@ -1659,7 +1659,7 @@ source = "git+https://github.com/SimplePixelFont/spf.rs.git#7aef89647fecf67ec356
 
 [[package]]
 name = "spfc"
-version = "0.0.1"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
