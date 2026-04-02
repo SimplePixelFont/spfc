@@ -169,7 +169,7 @@ impl<S: ToString> TryFrom<PluginOptionsList<S>> for ABIPluginOptionsList {
         let (options_ptr, length) = vec_to_raw_with_conversion!(value.options, ABIPluginOption);
         Ok(ABIPluginOptionsList {
             options: options_ptr,
-            options_length: length as u32,
+            options_length: length as c_ulong,
         })
     }
 }
@@ -195,7 +195,7 @@ impl<S: ToString> TryFrom<Vec<PluginOption<S>>> for ABIPluginOptionsList {
         let (options_ptr, length) = vec_to_raw_with_conversion!(value, ABIPluginOption);
         Ok(ABIPluginOptionsList {
             options: options_ptr,
-            options_length: length as u32,
+            options_length: length as c_ulong,
         })
     }
 }
@@ -260,7 +260,7 @@ impl TryFrom<CompileOptions> for ABICompileOptions {
             input: input_ptr,
             output: output_ptr,
             extra_args: extra_args_ptr,
-            extra_args_length: extra_args_length as u32,
+            extra_args_length: extra_args_length as c_ulong,
         })
     }
 }
