@@ -1,0 +1,7 @@
+[package]
+name = "spfc-abi"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+spfc-macros = { path = "../spfc-macros" }
