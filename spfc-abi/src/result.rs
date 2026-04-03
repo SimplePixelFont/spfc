@@ -130,7 +130,7 @@ where
 
 /// Free the pointers inside a [`CResult`].
 ///
-/// The host **must** call this after consuming the result.
+/// The host **must** call this after consuming the result. Free to ignore for plugin authors.
 ///
 /// # Safety
 /// Both pointers must have originated from a `CResult` produced by this

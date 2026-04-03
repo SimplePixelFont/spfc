@@ -52,3 +52,17 @@ pub type GetPluginOptionsFn = extern "C" fn() -> ABIResult;
 pub type CompileFn = extern "C" fn(
     options: ABICompileOptions,
 ) -> ABIResult;
+
+#[unsafe(no_mangle)]
+pub extern "C" fn use_abi_types(
+    _backend_info: ABIBackendInfo,
+    _plugin_option: ABIPluginOption,
+    _plugin_options_list: ABIPluginOptionsList,
+    _key_value_pair: ABIKeyValuePair,
+    _compile_options: ABICompileOptions,
+    _get_backend_info: GetBackendInfoFn,
+    _get_plugin_options: GetPluginOptionsFn,
+    _compile: CompileFn,
+) {
+
+}
