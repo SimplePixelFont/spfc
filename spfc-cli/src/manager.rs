@@ -1,10 +1,12 @@
 use anyhow::{Context, Result};
+use reqwest::Certificate;
 use reqwest::header::{HeaderMap, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use rustls::crypto::ring::default_provider;
 
 const REGISTRY_URL: &str = "https://raw.githubusercontent.com/SimplePixelFont/spfc/main/registry.json";
 
@@ -40,6 +42,9 @@ pub struct PluginManager {
 
 impl PluginManager {
     pub fn new() -> Result<Self> {
+        default_provider().install_default()
+        .expect("Failed to install rustls crypto provider");
+
         let proj_dirs = directories::ProjectDirs::from("org", "SimplePixelFont", "spfc")
             .context("Could not determine config directory")?;
         
@@ -50,11 +55,21 @@ impl PluginManager {
 
         let mut headers = HeaderMap::default();
         headers.insert(USER_AGENT, "spfc-cli".parse().unwrap());
+
+        let certs = webpki_root_certs::TLS_SERVER_ROOT_CERTS
+        .iter()
+        .map(|cert| Certificate::from_der(cert).unwrap());
+
+        let client = reqwest::Client::builder()
+            .tls_certs_only(certs) // Use webpki roots exclusively
+            .tls_backend_rustls() // Use rustls backend
+            .default_headers(headers)
+            .build()?;
         
         Ok(Self {
             plugin_dir,
             registry_path,
-            client: reqwest::Client::builder().default_headers(headers).build()?,
+            client,
         })
     }
 

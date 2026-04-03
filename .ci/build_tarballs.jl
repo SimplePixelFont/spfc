@@ -29,12 +29,12 @@ mkdir target
 
 # If we are building the CLI tool, it produces an executable
 if [[ "$COMPONENT" == "spfc" ]]; then
-    cargo build -p ${COMPONENT} --release
+    RUSTFLAGS="-C target-feature=-crt-static" cargo build -p ${COMPONENT} --release
     install -D -m 755 "target/${rust_target}/release/spfc${exeext}" "${bindir}/spfc${exeext}"
 
 # If we are building a target plugin, it produces a dynamic library (cdylib)
 else
-    cargo rustc -p ${COMPONENT} --release --crate-type cdylib
+    RUSTFLAGS="-C target-feature=-crt-static" cargo build -p ${COMPONENT} --release
     
     # Windows typically generates .dll without a 'lib' prefix
     if [[ "${rust_target}" == *"windows"* ]]; then
@@ -44,7 +44,7 @@ else
     fi
 fi
 
-install_license LICENSE
+install_license LICENSE-APACHE
 """
 
 platforms = [
