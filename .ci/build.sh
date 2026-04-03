@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # .ci/build.sh
-# Builds a single component for a single Rust target using cargo-zigbuild.
-# Replaces build_tarballs.jl + release.jl.
+# Builds a single component for a single Rust target.
+# Uses plain `cargo build` on native macOS runners (full Apple SDK present).
+# Uses `cargo zigbuild` on Linux runners for all other cross targets.
 #
 # Required env vars:
 #   COMPONENT  — e.g. "spfc" or "spfc-target-ttf"
@@ -47,7 +48,14 @@ if [[ "$COMPONENT" != "spfc" && "$TARGET" != *musl* ]]; then
 fi
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-cargo zigbuild -p "$COMPONENT" --release --target "$TARGET"
+# On macOS runners, aws-lc-sys needs the real Apple SDK (CoreServices.h etc.)
+# which zigbuild's bundled minimal SDK doesn't include. Build natively there.
+# On Linux runners, use zigbuild for all cross targets.
+if [[ "$(uname)" == "Darwin" ]]; then
+  cargo build -p "$COMPONENT" --release --target "$TARGET"
+else
+  cargo zigbuild -p "$COMPONENT" --release --target "$TARGET"
+fi
 
 # ── Collect binary into a staging dir ────────────────────────────────────────
 STAGING="staging/${TARGET}"

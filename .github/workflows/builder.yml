@@ -7,11 +7,10 @@ on:
         description: "Tag name (e.g. cli-v1.0.0, target-ttf-v1.0.0, abi-v1.0.0)"
         required: true
 
-# ── Parse tag ─────────────────────────────────────────────────────────────────
-# Tag conventions:
+# ── Tag conventions ───────────────────────────────────────────────────────────
 #   cli-v{version}             → builds spfc (executable)
 #   target-{name}-v{version}   → builds spfc-target-{name} (cdylib)
-#   abi-v{version}             → generates spfc_abi.h via cbindgen (no Rust cross-compile)
+#   abi-v{version}             → generates spfc_abi.h via cbindgen only
 
 jobs:
   parse-tag:
@@ -55,7 +54,7 @@ jobs:
             echo "type=abi"           >> $GITHUB_OUTPUT
           fi
 
-  # ── ABI header generation (no cross-compile) ────────────────────────────────
+  # ── ABI header generation (no cross-compile needed) ──────────────────────────
   build-abi:
     name: Generate ABI Header
     needs: parse-tag
@@ -75,26 +74,33 @@ jobs:
           name: abi-header
           path: artifacts/
 
-  # ── Cross-compile matrix (cli + target plugins) ─────────────────────────────
+  # ── Cross-compile matrix ──────────────────────────────────────────────────────
+  # macOS targets run on macos-latest: aws-lc-sys requires the real Apple SDK
+  # (CoreServices.h and friends) which zigbuild's bundled SDK doesn't ship.
+  # All other targets run on ubuntu-latest and cross-compile via cargo-zigbuild.
   build:
     name: Build ${{ needs.parse-tag.outputs.component }} (${{ matrix.target }})
     needs: parse-tag
     if: needs.parse-tag.outputs.type != 'abi'
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-gnu
-          - aarch64-unknown-linux-musl
-          - i686-unknown-linux-gnu
-          - armv7-unknown-linux-gnueabihf
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-          - x86_64-unknown-freebsd
-          - x86_64-pc-windows-gnu
+        include:
+          # ── Linux (cross-compiled from ubuntu via zigbuild) ──────────────────
+          - { target: x86_64-unknown-linux-gnu,      os: ubuntu-latest }
+          - { target: x86_64-unknown-linux-musl,     os: ubuntu-latest }
+          - { target: aarch64-unknown-linux-gnu,     os: ubuntu-latest }
+          - { target: aarch64-unknown-linux-musl,    os: ubuntu-latest }
+          - { target: i686-unknown-linux-gnu,        os: ubuntu-latest }
+          - { target: armv7-unknown-linux-gnueabihf, os: ubuntu-latest }
+          # ── Windows (cross-compiled from ubuntu via zigbuild) ────────────────
+          - { target: x86_64-pc-windows-gnu,         os: ubuntu-latest }
+          # ── FreeBSD (cross-compiled from ubuntu via zigbuild) ────────────────
+          - { target: x86_64-unknown-freebsd,        os: ubuntu-latest }
+          # ── macOS (native runners — aws-lc-sys needs the real Apple SDK) ─────
+          - { target: x86_64-apple-darwin,           os: macos-latest  }
+          - { target: aarch64-apple-darwin,          os: macos-latest  }
+    runs-on: ${{ matrix.os }}
     env:
       COMPONENT: ${{ needs.parse-tag.outputs.component }}
       TAG_NAME:  ${{ inputs.tag_name }}
@@ -103,24 +109,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Check out the exact commit the tag points at, not the workflow ref
           ref: ${{ needs.parse-tag.outputs.sha }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
+      # zigbuild only needed on Linux runners
       - name: Install Zig + cargo-zigbuild
+        if: matrix.os == 'ubuntu-latest'
         run: |
           pip install ziglang --quiet
           cargo install cargo-zigbuild --locked
-
-      # Raise the macOS deployment target so Security.framework symbols
-      # (ALPN, session tickets, SecTrustEvaluateWithError) are available.
-      # 10.14 is the minimum that covers all symbols reqwest/rustls needs.
-      - name: Set macOS deployment target
-        if: contains(matrix.target, 'apple')
-        run: echo "MACOSX_DEPLOYMENT_TARGET=10.14" >> $GITHUB_ENV
 
       - name: Build
         run: bash .ci/build.sh
@@ -130,11 +130,10 @@ jobs:
           name: artifact-${{ matrix.target }}
           path: artifacts/*.tar.gz
 
-  # ── Upload build artifacts to the release ───────────────────────────────────
+  # ── Collect and publish ───────────────────────────────────────────────────────
   release:
     name: Upload Release Assets
     needs: [parse-tag, build]
-    # Run even if some matrix legs failed (fail-fast: false); skip only on cancel.
     if: always() && needs.build.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions:
@@ -154,7 +153,6 @@ jobs:
           tag_name: ${{ inputs.tag_name }}
           files: artifacts/*
 
-  # ── Upload ABI header to the release ────────────────────────────────────────
   release-abi:
     name: Upload ABI Header
     needs: [parse-tag, build-abi]
@@ -167,13 +165,12 @@ jobs:
         with:
           name: abi-header
           path: artifacts/
-
       - uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ inputs.tag_name }}
           files: artifacts/*
 
-  # ── Update registry.json (target releases only) ──────────────────────────────
+  # ── Registry update (target releases only) ───────────────────────────────────
   update-registry:
     name: Update Target Registry
     needs: [parse-tag, release]
@@ -185,11 +182,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
-
       - name: Update registry
         run: julia .ci/update_registry.jl
         env:
