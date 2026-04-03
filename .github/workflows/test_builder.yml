@@ -6,8 +6,12 @@ on:
   pull_request:
     branches: [main]
 
-# Representative cross-section: one Linux cross, one macOS native, one Windows cross.
-# Full 10-target matrix runs only on real releases via builder.yml.
+# Tests a representative cross-section on every push/PR.
+# Full 10-target matrix only runs on real releases via builder.yml.
+#
+# Matrix must be fully explicit (include-only) so GitHub Actions creates
+# exactly the intended jobs. Mixing list keys with include entries does NOT
+# cross-multiply — the includes become standalone jobs missing the list key.
 
 jobs:
   test-build:
@@ -15,11 +19,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: [spfc, spfc-target-ttf]
         include:
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
-          - { target: x86_64-apple-darwin,      os: macos-latest  }
-          - { target: x86_64-pc-windows-gnu,    os: ubuntu-latest }
+          # spfc (CLI executable)
+          - { component: spfc,            target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          - { component: spfc,            target: x86_64-apple-darwin,      os: macos-latest  }
+          - { component: spfc,            target: x86_64-pc-windows-gnu,    os: ubuntu-latest }
+          # spfc-target-ttf (cdylib plugin)
+          - { component: spfc-target-ttf, target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          - { component: spfc-target-ttf, target: x86_64-apple-darwin,      os: macos-latest  }
+          - { component: spfc-target-ttf, target: x86_64-pc-windows-gnu,    os: ubuntu-latest }
     runs-on: ${{ matrix.os }}
     env:
       COMPONENT: ${{ matrix.component }}
