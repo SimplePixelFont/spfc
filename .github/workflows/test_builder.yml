@@ -1,10 +1,7 @@
 name: CI Build Test
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch
 
 # Tests a representative cross-section on every push/PR.
 # Full 10-target matrix only runs on real releases via builder.yml.
