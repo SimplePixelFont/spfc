@@ -19,6 +19,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    // Compile a SimplePixelFont file using a specified target backend
     Compile {
         /// Input SimplePixelFont file path
         #[arg(short, long)]
@@ -33,10 +34,14 @@ enum Commands {
         #[arg(short, long, default_value_t = String::from("ttf"))]
         target: String,
     },
+    /// Install a new target backend
     Install {
         /// The target to install (e.g., ttf or ttf@1.0.0)
         target: String,
     },
+    /// List all available targets from the registry
+    List,
+    /// Update the plugin registry by fetching the latest information from the SimplePixelFont/spfc GitHub repository
     UpdateRegistry,
 }
 
@@ -106,11 +111,11 @@ fn get_library_name(target: &str) -> String {
     } else if cfg!(target_os = "macos") {
         format!("lib{}.dylib", base)
     } else {
-        format!("lib{}.so", base) // Linux & others
+        format!("lib{}.so", base)
     }
 }
 
-/// Peeks at raw command-line arguments to find the target before clap fully parses them
+/// Peeks at raw command-line arguments to find the target before clap fully parses them.
 fn extract_arg(short: &str, long: &str) -> Option<String> {
     let args: Vec<String> = std::env::args().collect();
     for i in 0..args.len() {
@@ -137,6 +142,10 @@ async fn main() -> Result<()> {
                 let (t_name, t_ver) = parse_target_version(&target);
                 manager.install(&t_name, t_ver).await?;
             }
+            Commands::List => {
+                let output = manager.list_targets().await?;
+                println!("{}", output);
+            }
             Commands::UpdateRegistry => {
                 manager.update_registry().await?;
             }
@@ -151,7 +160,6 @@ async fn main() -> Result<()> {
     let plugin_path = find_plugin(&target_name, target_version.as_ref())?;
 
     unsafe {
-        // 2. Load the plugin
         let lib = Library::new(&plugin_path)?;
 
         let get_info: Symbol<GetBackendInfoFn> = lib.get(b"get_backend_info")?;
@@ -163,8 +171,8 @@ async fn main() -> Result<()> {
         let get_plugin_options: Symbol<GetPluginOptionsFn> = lib.get(b"get_plugin_options")?;
         let plugin_options: Vec<PluginOption<String>> = unpack_result(get_plugin_options())?;
 
-        // Build a dynamic clap Command
-        let mut cmd = Cli::command(); // Gets the base command from our struct
+        // Build a dynamic clap Command augmented with the plugin's declared options.
+        let mut cmd = Cli::command();
 
         for option in plugin_options.iter() {
             let name: &'static str = Box::leak(option.name.clone().into_boxed_str());
@@ -175,7 +183,7 @@ async fn main() -> Result<()> {
             let mut arg = Arg::new(name)
                 .long(name)
                 .help(description)
-                .action(ArgAction::Set); // Requires a value
+                .action(ArgAction::Set);
 
             if !option.default_value.is_empty() {
                 arg = arg.default_value(default_value);
@@ -183,7 +191,6 @@ async fn main() -> Result<()> {
                 arg = arg.required(false);
             }
 
-            // Add the plugin's argument under a custom "Plugin Options" header in help
             arg = arg.help_heading("Plugin Options");
             cmd = cmd.arg(arg);
         }
@@ -191,7 +198,6 @@ async fn main() -> Result<()> {
         let matches = cmd.get_matches();
         let args = Cli::from_arg_matches(&matches)?;
 
-        // Extract the plugin-specific extra arguments
         if let Commands::Compile { input, output, .. } = args.command {
             let mut extra_args_vec = Vec::new();
             for option in plugin_options.iter() {
