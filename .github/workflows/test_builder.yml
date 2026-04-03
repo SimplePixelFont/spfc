@@ -2,53 +2,54 @@ name: CI Build Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+# Test a representative cross-section of targets on every push/PR.
+# Full platform matrix runs only on real releases (builder.yml).
+# Using 3 targets: native Linux, cross macOS, cross Windows.
 
 jobs:
   test-build:
-    name: Test Build (${{ matrix.component }})
+    name: Test (${{ matrix.component }} / ${{ matrix.target }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        component: ["spfc", "spfc-target-ttf"]
+        component: [spfc, spfc-target-ttf]
+        target:
+          - x86_64-unknown-linux-gnu   # native — fast, good baseline
+          - x86_64-apple-darwin        # cross macOS — validates SDK version fix
+          - x86_64-pc-windows-gnu      # cross Windows — validates dll naming
+    env:
+      COMPONENT: ${{ matrix.component }}
+      TAG_NAME:  ci-test
+      TARGET:    ${{ matrix.target }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - uses: julia-actions/setup-julia@v2
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          version: "1.7"
+          targets: ${{ matrix.target }}
 
-      - name: Run BinaryBuilder Test
-        shell: bash
+      - name: Install Zig + cargo-zigbuild
         run: |
-          # We use a dummy tag name since local_build.jl needs one
-          # but we use the actual current SHA for the build logic
-          export COMPONENT="${{ matrix.component }}"
-          export TAG_NAME="ci-test"
-          export SHA="${{ github.sha }}"
-          
-          echo "Testing build for $COMPONENT at $SHA"
-          
-          # Run the local build helper
-          # Note: We include the script directly to avoid complex arg passing
-          julia --project=.ci -e '
-            ENV["COMPONENT"] = ENV["COMPONENT"];
-            ENV["TAG_NAME"] = ENV["TAG_NAME"];
-            ENV["SHA"] = ENV["SHA"];
-            include(".ci/release.jl")
-          '
+          pip install ziglang --quiet
+          cargo install cargo-zigbuild --locked
 
-      - name: Check Artifacts
+      - name: Set macOS deployment target
+        if: contains(matrix.target, 'apple')
+        run: echo "MACOSX_DEPLOYMENT_TARGET=10.14" >> $GITHUB_ENV
+
+      - name: Build
+        run: bash .ci/build.sh
+
+      - name: Verify artifact exists
         run: |
-          if [ -d "artifacts" ]; then
-            echo "Build successful! Artifacts generated:"
-            ls -R artifacts/
-          else
-            echo "Error: No artifacts found!"
-            exit 1
-          fi
+          EXPECTED="artifacts/${COMPONENT}.${TAG_NAME}.${TARGET}.tar.gz"
+          echo "Checking for: $EXPECTED"
+          test -f "$EXPECTED" && echo "✅ Found" || (echo "❌ Missing" && exit 1)
+          echo "── Contents ──"
+          tar -tzvf "$EXPECTED"

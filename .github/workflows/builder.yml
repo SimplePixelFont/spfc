@@ -4,84 +4,194 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "The tag name (e.g., cli-v1.0.0, target-ttf-v1.0.0, abi-v1.0.0)"
+        description: "Tag name (e.g. cli-v1.0.0, target-ttf-v1.0.0, abi-v1.0.0)"
         required: true
-      asset_folder:
-        description: "Path to the folder containing assets"
-        required: true
-        default: "artifacts"
+
+# ── Parse tag ─────────────────────────────────────────────────────────────────
+# Tag conventions:
+#   cli-v{version}             → builds spfc (executable)
+#   target-{name}-v{version}   → builds spfc-target-{name} (cdylib)
+#   abi-v{version}             → generates spfc_abi.h via cbindgen (no Rust cross-compile)
 
 jobs:
-  builder:
-    name: Upload release assets
+  parse-tag:
+    name: Parse Tag
     runs-on: ubuntu-latest
-    permissions:
-      contents: write 
-
+    outputs:
+      component:   ${{ steps.parse.outputs.component }}
+      type:        ${{ steps.parse.outputs.type }}
+      version:     ${{ steps.parse.outputs.version }}
+      sha:         ${{ steps.parse.outputs.sha }}
+      target_name: ${{ steps.parse.outputs.target_name }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get Metadata from Tag
-        id: parse_tag
+      - name: Parse tag → component metadata
+        id: parse
         run: |
-          SHA=$(git rev-list -n 1 ${{ inputs.tag_name }})
+          TAG="${{ inputs.tag_name }}"
+          SHA=$(git rev-list -n 1 "$TAG")
           echo "sha=$SHA" >> $GITHUB_OUTPUT
-          
-          TAG=${{ inputs.tag_name }}
+
           if [[ "$TAG" == cli-* ]]; then
-            VERSION=$(echo $TAG | sed 's/cli-v//')
-            echo "component=spfc" >> $GITHUB_OUTPUT
-            echo "type=cli" >> $GITHUB_OUTPUT
+            VERSION=$(echo "$TAG" | sed 's/cli-v//')
+            echo "component=spfc"   >> $GITHUB_OUTPUT
+            echo "type=cli"         >> $GITHUB_OUTPUT
             echo "version=$VERSION" >> $GITHUB_OUTPUT
+
           elif [[ "$TAG" == target-*-* ]]; then
-            # target-ttf-v1.0.0 -> name=ttf, version=1.0.0
-            PREFIX=$(echo $TAG | awk -F'-v' '{print $1}' | sed 's/target-//')
-            VERSION=$(echo $TAG | awk -F'-v' '{print $2}')
+            # target-ttf-v1.0.0  →  prefix=ttf, version=1.0.0
+            PREFIX=$(echo "$TAG" | awk -F'-v' '{print $1}' | sed 's/target-//')
+            VERSION=$(echo "$TAG" | awk -F'-v' '{print $2}')
             echo "component=spfc-target-$PREFIX" >> $GITHUB_OUTPUT
-            echo "type=target" >> $GITHUB_OUTPUT
-            echo "target_name=$PREFIX" >> $GITHUB_OUTPUT
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "type=target"                   >> $GITHUB_OUTPUT
+            echo "target_name=$PREFIX"           >> $GITHUB_OUTPUT
+            echo "version=$VERSION"              >> $GITHUB_OUTPUT
+
           elif [[ "$TAG" == abi-* ]]; then
             echo "component=spfc-abi" >> $GITHUB_OUTPUT
-            echo "type=abi" >> $GITHUB_OUTPUT
+            echo "type=abi"           >> $GITHUB_OUTPUT
           fi
 
-      # ABI Generation
-      - name: Generate ABI Header
-        if: steps.parse_tag.outputs.type == 'abi'
+  # ── ABI header generation (no cross-compile) ────────────────────────────────
+  build-abi:
+    name: Generate ABI Header
+    needs: parse-tag
+    if: needs.parse-tag.outputs.type == 'abi'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cbindgen
+        run: cargo install cbindgen --locked
+      - name: Generate header
         run: |
-          mkdir -p ${{ inputs.asset_folder }}
-          cargo install cbindgen
-          cbindgen --crate spfc_abi --output spfc_abi.h --lang c --cpp-compat
-          mv spfc_abi.h ${{ inputs.asset_folder }}/spfc_abi.h
-
-      # Julia setup for Build & Registry Update
-      - uses: julia-actions/setup-julia@v2
+          mkdir -p artifacts
+          cbindgen --crate spfc-abi --output artifacts/spfc_abi.h --lang c --cpp-compat
+      - uses: actions/upload-artifact@v4
         with:
-          version: "1.7"
+          name: abi-header
+          path: artifacts/
 
-      # Cross-Compile
-      - name: Build with BinaryBuilder.jl
-        if: steps.parse_tag.outputs.type != 'abi'
-        run: >
-          COMPONENT='${{ steps.parse_tag.outputs.component }}' 
-          TAG_NAME='${{ inputs.tag_name }}' 
-          SHA='${{ steps.parse_tag.outputs.sha }}' 
-          julia -- ./.ci/release.jl
+  # ── Cross-compile matrix (cli + target plugins) ─────────────────────────────
+  build:
+    name: Build ${{ needs.parse-tag.outputs.component }} (${{ matrix.target }})
+    needs: parse-tag
+    if: needs.parse-tag.outputs.type != 'abi'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+          - i686-unknown-linux-gnu
+          - armv7-unknown-linux-gnueabihf
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+          - x86_64-unknown-freebsd
+          - x86_64-pc-windows-gnu
+    env:
+      COMPONENT: ${{ needs.parse-tag.outputs.component }}
+      TAG_NAME:  ${{ inputs.tag_name }}
+      TARGET:    ${{ matrix.target }}
 
-      - name: Upload assets to release
-        uses: softprops/action-gh-release@v1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Check out the exact commit the tag points at, not the workflow ref
+          ref: ${{ needs.parse-tag.outputs.sha }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Zig + cargo-zigbuild
+        run: |
+          pip install ziglang --quiet
+          cargo install cargo-zigbuild --locked
+
+      # Raise the macOS deployment target so Security.framework symbols
+      # (ALPN, session tickets, SecTrustEvaluateWithError) are available.
+      # 10.14 is the minimum that covers all symbols reqwest/rustls needs.
+      - name: Set macOS deployment target
+        if: contains(matrix.target, 'apple')
+        run: echo "MACOSX_DEPLOYMENT_TARGET=10.14" >> $GITHUB_ENV
+
+      - name: Build
+        run: bash .ci/build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.target }}
+          path: artifacts/*.tar.gz
+
+  # ── Upload build artifacts to the release ───────────────────────────────────
+  release:
+    name: Upload Release Assets
+    needs: [parse-tag, build]
+    # Run even if some matrix legs failed (fail-fast: false); skip only on cancel.
+    if: always() && needs.build.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: artifact-*
+          merge-multiple: true
+          path: artifacts/
+
+      - name: List collected artifacts
+        run: ls -lh artifacts/
+
+      - uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ inputs.tag_name }}
-          files: ${{ inputs.asset_folder }}/*
+          files: artifacts/*
 
-      # New: Registry Update via Julia
-      - name: Update Registry
-        if: steps.parse_tag.outputs.type == 'target'
-        run: >
-          TARGET_NAME='${{ steps.parse_tag.outputs.target_name }}'
-          VERSION='${{ steps.parse_tag.outputs.version }}'
-          julia -- ./.ci/update_registry.jl
+  # ── Upload ABI header to the release ────────────────────────────────────────
+  release-abi:
+    name: Upload ABI Header
+    needs: [parse-tag, build-abi]
+    if: needs.parse-tag.outputs.type == 'abi'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: abi-header
+          path: artifacts/
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          files: artifacts/*
+
+  # ── Update registry.json (target releases only) ──────────────────────────────
+  update-registry:
+    name: Update Target Registry
+    needs: [parse-tag, release]
+    if: needs.parse-tag.outputs.type == 'target' && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+
+      - name: Update registry
+        run: julia .ci/update_registry.jl
+        env:
+          TARGET_NAME: ${{ needs.parse-tag.outputs.target_name }}
+          VERSION:     ${{ needs.parse-tag.outputs.version }}
