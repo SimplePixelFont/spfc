@@ -1,0 +1,54 @@
+name: CI Build Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-build:
+    name: Test Build (${{ matrix.component }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ["spfc", "spfc-target-ttf"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.7"
+
+      - name: Run BinaryBuilder Test
+        shell: bash
+        run: |
+          # We use a dummy tag name since local_build.jl needs one
+          # but we use the actual current SHA for the build logic
+          export COMPONENT="${{ matrix.component }}"
+          export TAG_NAME="ci-test"
+          export SHA="${{ github.sha }}"
+          
+          echo "Testing build for $COMPONENT at $SHA"
+          
+          # Run the local build helper
+          # Note: We include the script directly to avoid complex arg passing
+          julia --project=.ci -e '
+            ENV["COMPONENT"] = ENV["COMPONENT"];
+            ENV["TAG_NAME"] = ENV["TAG_NAME"];
+            ENV["SHA"] = ENV["SHA"];
+            include(".ci/release.jl")
+          '
+
+      - name: Check Artifacts
+        run: |
+          if [ -d "artifacts" ]; then
+            echo "Build successful! Artifacts generated:"
+            ls -R artifacts/
+          else
+            echo "Error: No artifacts found!"
+            exit 1
+          fi
