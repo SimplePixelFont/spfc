@@ -31,6 +31,13 @@ pub fn push_hmtx_table(process: &mut Process) -> Result<()> {
         });
     }
 
+    for pixmap in &process.color_layer_glyphs {
+        hmtx_metrics.push(LongMetric {
+            advance: pixmap.advance_x as u16 * process.target_pixel_size as u16 + letter_spacing,
+            side_bearing: pixmap.left_side_bearing * process.target_pixel_size,
+        });
+    }
+
     let hmtx = Hmtx {
         h_metrics: hmtx_metrics,
         left_side_bearings: vec![],

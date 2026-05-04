@@ -32,6 +32,16 @@ pub fn push_glyf_loca_tables(process: &mut Process) -> Result<()> {
     glyf_builder.add_glyph(&nonmarkingreturn)?;
 
     for (_, pixmap) in &process.pixmap_pairs {
+        // Always include the outline in the base glyph. 
+        // For COLR fonts, this acts as the monochrome silhouette fallback.
+        let glyph = pixmap.clone().into_simple_glyph(
+            process.target_pixel_size as u16,
+            process.descender_pixels as usize,
+        );
+        glyf_builder.add_glyph(&glyph)?;
+    }
+
+    for pixmap in &process.color_layer_glyphs {
         let glyph = pixmap.clone().into_simple_glyph(
             process.target_pixel_size as u16,
             process.descender_pixels as usize,

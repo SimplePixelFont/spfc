@@ -1,78 +1,147 @@
-use crate::builders::AUTOINSERTED_CHARS_COUNT;
-
 use super::Process;
+use crate::builders::AUTOINSERTED_CHARS_COUNT;
 use anyhow::Result;
-use write_fonts::tables::cmap::{Cmap, CmapSubtable, EncodingRecord, PlatformId};
+use std::collections::BTreeMap;
+use write_fonts::tables::cmap::{
+    Cmap, CmapSubtable, EncodingRecord, PlatformId, SequentialMapGroup,
+};
 
-fn group_into_segments(chars: &[char]) -> Vec<(u16, u16)> {
-    if chars.is_empty() {
-        return vec![];
-    }
+pub fn push_cmap_table(process: &mut Process) -> Result<()> {
+    let mut sorted_chars: Vec<char> = process.pixmap_pairs.keys().copied().collect();
+    sorted_chars.sort_unstable(); // Ensure characters are sorted for consistent glyph ID assignment
 
-    let mut segments = vec![];
-    let mut start = chars[0] as u16;
-    let mut end = start;
+    // Create a mapping from char to its assigned glyph ID
+    let char_to_glyph_id: BTreeMap<char, u16> = sorted_chars
+        .iter()
+        .enumerate()
+        .map(|(i, &ch)| (ch, AUTOINSERTED_CHARS_COUNT + i as u16))
+        .collect();
 
-    for &ch in &chars[1..] {
-        let code = ch as u16;
-        if code == end + 1 {
-            end = code;
+    // Format 4 (BMP only, for legacy compatibility)
+    let mut end_codes_f4 = vec![];
+    let mut start_codes_f4 = vec![];
+    let mut deltas_f4 = vec![];
+    let mut offsets_f4 = vec![];
+
+    let mut current_f4_segment: Option<(u16, u16, u16)> = None; // (start_char, end_char, start_glyph_id)
+
+    for &ch in &sorted_chars {
+        let char_code = ch as u32;
+        if char_code > 0xFFFF {
+            // Format 4 only handles BMP characters
+            continue;
+        }
+        let char_code_u16 = char_code as u16;
+        let glyph_id = *char_to_glyph_id.get(&ch).unwrap();
+
+        if let Some((seg_start_char, seg_end_char, seg_start_glyph_id)) = current_f4_segment {
+            if char_code_u16 == seg_end_char + 1
+                && glyph_id == seg_start_glyph_id + (char_code_u16 - seg_start_char)
+            {
+                // Extend current segment
+                current_f4_segment = Some((seg_start_char, char_code_u16, seg_start_glyph_id));
+            } else {
+                // End previous segment and start a new one
+                end_codes_f4.push(seg_end_char);
+                start_codes_f4.push(seg_start_char);
+                let delta = seg_start_glyph_id as i16 - seg_start_char as i16;
+                deltas_f4.push(delta);
+                offsets_f4.push(0); // Use delta formula
+
+                current_f4_segment = Some((char_code_u16, char_code_u16, glyph_id));
+            }
         } else {
-            segments.push((start, end));
-            start = code;
-            end = code;
+            // Start the first segment
+            current_f4_segment = Some((char_code_u16, char_code_u16, glyph_id));
         }
     }
 
-    segments.push((start, end));
-
-    segments
-}
-
-pub fn push_cmap_table(process: &mut Process) -> Result<()> {
-    let sorted_chars: Vec<char> = process.pixmap_pairs.keys().copied().collect();
-    let segments = group_into_segments(&sorted_chars);
-
-    let mut end_codes = vec![];
-    let mut start_codes = vec![];
-    let mut deltas = vec![];
-    let mut offsets = vec![];
-
-    let mut current_glyph_index = AUTOINSERTED_CHARS_COUNT;
-
-    for (start_char, end_char) in segments.iter() {
-        end_codes.push(*end_char);
-        start_codes.push(*start_char);
-
-        // Calculate delta: glyph_index = char_code + delta
-        // delta = glyph_index - char_code
-        let delta = current_glyph_index as i16 - *start_char as i16;
-        deltas.push(delta);
-        offsets.push(0); // Use delta formula
-
-        let segment_size = (*end_char - *start_char + 1) as u16;
-        current_glyph_index += segment_size;
+    // Push the last Format 4 segment if any
+    if let Some((seg_start_char, seg_end_char, seg_start_glyph_id)) = current_f4_segment {
+        end_codes_f4.push(seg_end_char);
+        start_codes_f4.push(seg_start_char);
+        let delta = seg_start_glyph_id as i16 - seg_start_char as i16;
+        deltas_f4.push(delta);
+        offsets_f4.push(0); // Use delta formula
     }
 
-    // Terminator segment
-    end_codes.push(0xFFFF);
-    start_codes.push(0xFFFF);
-    deltas.push(1);
-    offsets.push(0);
+    // Terminator segment for Format 4
+    end_codes_f4.push(0xFFFF);
+    start_codes_f4.push(0xFFFF);
+    deltas_f4.push(1); // Maps 0xFFFF to glyph 0 (notdef)
+    offsets_f4.push(0);
+    let format_4_subtable = CmapSubtable::format_4(
+        0,
+        end_codes_f4,
+        start_codes_f4,
+        deltas_f4,
+        offsets_f4,
+        vec![],
+    );
 
-    let cmap_subtable = CmapSubtable::format_4(0, end_codes, start_codes, deltas, offsets, vec![]);
+    // Format 12 (Full Unicode range, required for emojis)
+    let mut groups_f12 = vec![];
+    let mut current_f12_segment: Option<(u32, u32, u32)> = None; // (start_char, end_char, start_glyph_id)
+
+    for &ch in &sorted_chars {
+        let char_code = ch as u32;
+        let glyph_id = *char_to_glyph_id.get(&ch).unwrap() as u32;
+
+        if let Some((seg_start_char, seg_end_char, seg_start_glyph_id)) = current_f12_segment {
+            if char_code == seg_end_char + 1
+                && glyph_id == seg_start_glyph_id + (char_code - seg_start_char)
+            {
+                // Extend current segment
+                current_f12_segment = Some((seg_start_char, char_code, seg_start_glyph_id));
+            } else {
+                // End previous segment and start a new one
+                groups_f12.push(SequentialMapGroup::new(
+                    seg_start_char,
+                    seg_end_char,
+                    seg_start_glyph_id,
+                ));
+                current_f12_segment = Some((char_code, char_code, glyph_id));
+            }
+        } else {
+            // Start the first segment
+            current_f12_segment = Some((char_code, char_code, glyph_id));
+        }
+    }
+
+    // Push the last Format 12 segment if any
+    if let Some((seg_start_char, seg_end_char, seg_start_glyph_id)) = current_f12_segment {
+        groups_f12.push(SequentialMapGroup::new(
+            seg_start_char,
+            seg_end_char,
+            seg_start_glyph_id,
+        ));
+    }
+    let format_12_subtable = CmapSubtable::format_12(0, groups_f12);
 
     let cmap = Cmap {
         encoding_records: vec![
+            // Unicode Full (Plane 0-16)
+            EncodingRecord {
+                platform_id: PlatformId::Unicode,
+                encoding_id: 4,
+                subtable: format_12_subtable.clone().into(),
+            },
+            // Windows Full
+            EncodingRecord {
+                platform_id: PlatformId::Windows,
+                encoding_id: 10,
+                subtable: format_12_subtable.into(),
+            },
+            // Legacy BMP Fallbacks
             EncodingRecord {
                 platform_id: PlatformId::Unicode,
                 encoding_id: 3,
-                subtable: cmap_subtable.clone().into(),
+                subtable: format_4_subtable.clone().into(),
             },
             EncodingRecord {
                 platform_id: PlatformId::Windows,
                 encoding_id: 1,
-                subtable: cmap_subtable.into(),
+                subtable: format_4_subtable.into(),
             },
         ],
     };

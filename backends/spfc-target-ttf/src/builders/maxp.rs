@@ -1,11 +1,10 @@
 use super::Process;
-use crate::builders::AUTOINSERTED_CHARS_COUNT;
 use anyhow::Result;
 use write_fonts::tables::maxp::Maxp;
 
 pub fn push_maxp_table(process: &mut Process) -> Result<()> {
     let maxp = Maxp {
-        num_glyphs: process.pixmap_pairs.len() as u16 + AUTOINSERTED_CHARS_COUNT,
+        num_glyphs: process.total_glyph_count(),
         max_points: Some(process.max_points),
         max_contours: Some(process.max_contours),
         max_composite_points: Some(0),

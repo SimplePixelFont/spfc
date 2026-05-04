@@ -27,13 +27,27 @@ pub fn push_os2_table(process: &mut Process) -> Result<()> {
     os2.us_default_char = Some(0);
     os2.us_break_char = Some(32);
     os2.us_max_context = Some(0);
-    os2.ul_unicode_range_1 = 1;
-    os2.ul_unicode_range_2 = 0;
+
+    // Set Unicode range bits based on the characters present.
+    let mut range1 = 0u32;
+    let mut range2 = 0u32;
+    for &ch in process.pixmap_pairs.keys() {
+        let cp = ch as u32;
+        if cp <= 0x007F { range1 |= 1 << 0; } // Basic Latin
+        if (0x0080..=0x00FF).contains(&cp) { range1 |= 1 << 1; } // Latin-1 Supplement (covers NBSP)
+        if (0x2600..=0x26FF).contains(&cp) { range2 |= 1 << (51 - 32); } // Miscellaneous Symbols
+        if (0x1F300..=0x1F5FF).contains(&cp) { range2 |= 1 << (55 - 32); } // Symbols and Pictographs
+        if (0x1F600..=0x1F64F).contains(&cp) { range2 |= 1 << (56 - 32); } // Emoticons
+        if cp > 0xFFFF { range2 |= 1 << (57 - 32); } // Non-Plane 0 (Bit 57)
+    }
+
+    os2.ul_unicode_range_1 = range1;
+    os2.ul_unicode_range_2 = range2;
     os2.ul_unicode_range_3 = 0;
     os2.ul_unicode_range_4 = 0;
 
-    os2.us_first_char_index = *first_char as u16;
-    os2.us_last_char_index = *last_char as u16;
+    os2.us_first_char_index = (*first_char as u32).min(0xFFFF) as u16;
+    os2.us_last_char_index = (*last_char as u32).min(0xFFFF) as u16;
 
     os2.fs_type = 8; // editable embedding
 
