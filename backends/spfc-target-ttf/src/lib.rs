@@ -10,7 +10,7 @@ use utilities::*;
 fn get_backend_info() -> BackendInfo {
     BackendInfo {
         name: "TTF TrueType Backend",
-        version: 1,
+        version: 2,
         abi_version: CURRENT_ABI_VERSION,
     }
 }
@@ -40,16 +40,14 @@ fn get_plugin_options() -> Vec<PluginOption> {
         },
         PluginOption {
             name: "descender-pixels",
-            description: "Decender size in pixels",
+            description: "Descender size in pixels",
             default_value: "0",
         },
     ]
 }
 
 #[spfc_abi::export]
-fn compile(
-    options: CompileOptions,
-) -> CompileResult {
+fn compile(options: CompileOptions) -> CompileResult {
     let data = std::fs::read(&options.input).unwrap();
     let layout = layout_from_data(&data).unwrap();
     let font_table = layout.font_tables.first().unwrap();
@@ -61,10 +59,21 @@ fn compile(
     process.copyright = options.get_extra_argument("copyright").unwrap().to_owned();
     process.manufacturer = font.author.clone();
     process.vendor_url = options.get_extra_argument("vendor-url").unwrap().to_owned();
-    process.license_description = options.get_extra_argument("license-description").unwrap().to_owned();
+    process.license_description = options
+        .get_extra_argument("license-description")
+        .unwrap()
+        .to_owned();
 
-    process.target_pixel_size = options.get_extra_argument("pixel-size").unwrap().parse::<i16>().unwrap();
-    process.descender_pixels = options.get_extra_argument("descender-pixels").unwrap().parse::<i16>().unwrap();
+    process.target_pixel_size = options
+        .get_extra_argument("pixel-size")
+        .unwrap()
+        .parse::<i16>()
+        .unwrap();
+    process.descender_pixels = options
+        .get_extra_argument("descender-pixels")
+        .unwrap()
+        .parse::<i16>()
+        .unwrap();
 
     process.pixmap_pairs = create_pixmap_pairs(&layout);
     process.max_pixel_width = max_width(&process.pixmap_pairs);
@@ -75,7 +84,9 @@ fn compile(
         process.target_pixel_size,
     );
 
-    process.add_required_whitespace(); // a seperate validation layer might be needed later. Although really the only character that needs fixing and only if space exists :)
+    process.add_required_whitespace(); // a separate validation layer might be needed later. Although really the only character that needs fixing and only if space exists :)
+    process.ensure_ligature_components();
+    process.prepare_color_font_data(&layout);
     process.update_max_points_and_contours();
     process.is_monospaced = is_monospaced(&process.pixmap_pairs);
 
@@ -89,14 +100,16 @@ fn compile(
     push_hmtx_table(&mut process).unwrap();
     push_cmap_table(&mut process).unwrap();
     push_gasp_table(&mut process).unwrap();
+    push_gsub_table(&mut process).unwrap();
+    push_colr_cpal_tables(&mut process).unwrap();
 
     process.builder.add_raw(
         write_fonts::types::Tag::new(b"prep"),
         vec![0xB8, 0x01, 0xFF, 0x85, 0xB0, 0x04, 0x8D],
     );
 
-    // store raw spf data in a custom table for potential future use. 
-    // This is not necessary for the font to function, but it allows the original data to be preserved inside the font file itself, 
+    // store raw spf data in a custom table for potential future use.
+    // This is not necessary for the font to function, but it allows the original data to be preserved inside the font file itself,
     // which can be useful to debug.
     process.builder.add_raw(
         write_fonts::types::Tag::new(b"bspf"),

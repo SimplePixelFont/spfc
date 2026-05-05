@@ -8,8 +8,16 @@ pub fn push_os2_table(process: &mut Process) -> Result<()> {
         ((process.max_pixel_height - process.descender_pixels) * process.target_pixel_size) as i16;
     let descender = (process.descender_pixels * process.target_pixel_size) as i16;
 
-    let first_char = process.pixmap_pairs.keys().min().unwrap();
-    let last_char = process.pixmap_pairs.keys().max().unwrap();
+    let single_chars: Vec<u32> = process.pixmap_pairs.keys()
+        .filter_map(|s| {
+            let mut cs = s.chars();
+            let c = cs.next()?; // Get the first char
+            if cs.next().is_none() { Some(c as u32) } else { None } // Only consider single-character strings
+        })
+        .collect();
+
+    let first_char = single_chars.iter().min().copied().unwrap_or(0); // Default to 0 if no single chars
+    let last_char = single_chars.iter().max().copied().unwrap_or(0xFFFF); // Default to 0xFFFF if no single chars
 
     let mut os2 = Os2::default();
     os2.x_avg_char_width = get_average_char_width(&process.pixmap_pairs, process.target_pixel_size);
@@ -26,14 +34,37 @@ pub fn push_os2_table(process: &mut Process) -> Result<()> {
     os2.ul_code_page_range_2 = Some(0);
     os2.us_default_char = Some(0);
     os2.us_break_char = Some(32);
-    os2.us_max_context = Some(0);
-    os2.ul_unicode_range_1 = 1;
-    os2.ul_unicode_range_2 = 0;
+
+    // Set max_context to the length of the longest ligature sequence.
+    let max_ligature_len = process.pixmap_pairs.keys()
+        .map(|k| k.chars().count())
+        .max()
+        .unwrap_or(1) as u16;
+    os2.us_max_context = Some(max_ligature_len);
+
+    // Set Unicode range bits based on the characters present.
+    let mut range1 = 0u32;
+    let mut range2 = 0u32;
+    for ch in process.pixmap_pairs.keys() {
+        let Some(cp) = ch.chars().next().map(|c| c as u32) else {
+            // Skip multi-character strings for Unicode range bits,
+            // as these bits are for single Unicode code points.
+            continue;
+        };
+
+        if cp <= 0x007F { range1 |= 1 << 0; } // Basic Latin
+        if (0x0080..=0x00FF).contains(&cp) { range1 |= 1 << 1; } // Latin-1 Supplement (covers NBSP)
+        if (0x2600..=0x26FF).contains(&cp) { range2 |= 1 << (46 - 32); } // Miscellaneous Symbols
+        if cp > 0xFFFF { range2 |= 1 << (57 - 32); } // Non-Plane 0 (Bit 57)
+    }
+
+    os2.ul_unicode_range_1 = range1;
+    os2.ul_unicode_range_2 = range2;
     os2.ul_unicode_range_3 = 0;
     os2.ul_unicode_range_4 = 0;
 
-    os2.us_first_char_index = *first_char as u16;
-    os2.us_last_char_index = *last_char as u16;
+    os2.us_first_char_index = (first_char).min(0xFFFF) as u16;
+    os2.us_last_char_index = (last_char).min(0xFFFF) as u16;
 
     os2.fs_type = 8; // editable embedding
 

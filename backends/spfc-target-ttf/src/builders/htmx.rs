@@ -24,9 +24,16 @@ pub fn push_hmtx_table(process: &mut Process) -> Result<()> {
         side_bearing: 0,
     });
 
-    for (_, pixmap) in &process.pixmap_pairs {
+    for pixmap in process.pixmap_pairs.values() {
         hmtx_metrics.push(LongMetric {
             advance: pixmap.advance_x as u16 * process.target_pixel_size as u16 + letter_spacing,
+            side_bearing: pixmap.left_side_bearing * process.target_pixel_size,
+        });
+    }
+
+    for pixmap in &process.color_layer_glyphs {
+        hmtx_metrics.push(LongMetric {
+            advance: 0,
             side_bearing: pixmap.left_side_bearing * process.target_pixel_size,
         });
     }
