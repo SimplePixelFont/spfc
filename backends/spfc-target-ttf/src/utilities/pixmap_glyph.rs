@@ -197,7 +197,7 @@ fn calculate_left_bearing(pixels: &[bool], width: usize, height: usize) -> i16 {
     empty_left_columns as i16
 }
 
-pub fn create_pixmap_pairs(layout: &Layout) -> BTreeMap<char, PixmapGlyph> {
+pub fn create_pixmap_pairs(layout: &Layout) -> BTreeMap<String, PixmapGlyph> {
     let mut pixmap_pairs = BTreeMap::new();
     let mut color_control = ColorControl::with_capacity(layout.color_tables.len());
 
@@ -206,8 +206,8 @@ pub fn create_pixmap_pairs(layout: &Layout) -> BTreeMap<char, PixmapGlyph> {
         &layout.font_tables[0].fonts[0],
         layout,
         &PixmapGlyphTextureBuilder,
-        &mut color_control,
-        |grapheme| grapheme.to_owned().chars().next().unwrap_or('\0'),
+        &mut color_control, // Pass the ColorControl
+        |grapheme| grapheme.to_owned(), // Key is now String
         |key, glyph: PixmapGlyph| {
             pixmap_pairs.insert(key, glyph.clone());
         },

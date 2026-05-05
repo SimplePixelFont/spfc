@@ -12,6 +12,7 @@ mod head;
 mod hhea;
 mod htmx;
 mod maxp;
+mod gsub;
 mod name;
 mod os2;
 mod post;
@@ -24,6 +25,7 @@ pub use head::*;
 pub use hhea::*;
 pub use htmx::*;
 pub use maxp::*;
+pub use gsub::*;
 pub use name::*;
 pub use os2::*;
 pub use post::*;
@@ -59,7 +61,7 @@ pub struct Process<'a> {
     pub units_per_em: u16,
     pub max_pixel_width: i16,
     pub max_pixel_height: i16,
-    pub pixmap_pairs: BTreeMap<char, PixmapGlyph>,
+    pub pixmap_pairs: BTreeMap<String, PixmapGlyph>,
 
     pub family_name: String,
     pub family_version: f64,
@@ -83,16 +85,16 @@ pub struct Process<'a> {
 impl Process<'_> {
     pub fn add_required_whitespace(&mut self) {
         // Check if SPACE exists
-        let space_advance = if let Some(space_glyph) = self.pixmap_pairs.get(&'\u{0020}') {
+        let space_advance = if let Some(space_glyph) = self.pixmap_pairs.get(" ") {
             space_glyph.advance_x
         } else {
             self.max_pixel_width as u8
         };
 
         // Add NO-BREAK SPACE if missing
-        if !self.pixmap_pairs.contains_key(&'\u{00A0}') {
+        if !self.pixmap_pairs.contains_key("\u{00A0}") {
             self.pixmap_pairs.insert(
-                '\u{00A0}',
+                "\u{00A0}".to_string(),
                 PixmapGlyph {
                     advance_x: space_advance,
                     width: self.max_pixel_width as u8,
@@ -105,6 +107,36 @@ impl Process<'_> {
                         false;
                         self.max_pixel_width as usize * self.max_pixel_height as usize
                     ],
+                    left_side_bearing: 0,
+                },
+            );
+        }
+    }
+
+    /// Scans all defined ligatures and ensures that every individual character 
+    /// within those ligatures exists as a glyph in the font.
+    pub fn ensure_ligature_components(&mut self) {
+        let mut missing = std::collections::HashSet::new();
+        for key in self.pixmap_pairs.keys() {
+            if key.chars().count() > 1 {
+                for ch in key.chars() {
+                    let s = ch.to_string();
+                    if !self.pixmap_pairs.contains_key(&s) {
+                        missing.insert(s);
+                    }
+                }
+            }
+        }
+
+        for s in missing {
+            self.pixmap_pairs.insert(
+                s,
+                PixmapGlyph {
+                    advance_x: 0,
+                    width: self.max_pixel_width as u8,
+                    height: self.max_pixel_height as u8,
+                    pixels: vec![PixelRef::default(); self.max_pixel_width as usize * self.max_pixel_height as usize],
+                    opaque_mask: vec![false; self.max_pixel_width as usize * self.max_pixel_height as usize],
                     left_side_bearing: 0,
                 },
             );
@@ -208,6 +240,13 @@ impl Process<'_> {
         }
     }
 
+    pub fn get_glyph_id(&self, key: &str) -> Option<u16> {
+        self.pixmap_pairs
+            .keys()
+            .position(|k| k == key)
+            .map(|i| AUTOINSERTED_CHARS_COUNT + i as u16)
+    }
+
     pub fn total_glyph_count(&self) -> u16 {
         let dynamic_glyphs = self
             .pixmap_pairs
@@ -231,12 +270,12 @@ impl Process<'_> {
             );
 
             let mut points = 0;
-            for countor in &glyph.contours {
-                points += countor.iter().count() as u16
+            for contour in &glyph.contours {
+                points += contour.iter().count() as u16
             }
-            let countors = glyph.contours.len() as u16;
+            let contours = glyph.contours.len() as u16;
             self.max_points = self.max_points.max(points);
-            self.max_contours = self.max_contours.max(countors);
+            self.max_contours = self.max_contours.max(contours);
         }
     }
 }

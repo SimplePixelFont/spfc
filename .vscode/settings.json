@@ -1,8 +1,19 @@
 {
     "cSpell.words": [
+        "bezpath",
+        "cmap",
         "codepoints",
+        "colr",
+        "glyf",
+        "gsub",
+        "hhea",
+        "hmtx",
+        "loca",
+        "maxp",
+        "panose",
         "pixmap",
         "pixmaps",
+        "ppem",
         "spfc"
     ]
 }

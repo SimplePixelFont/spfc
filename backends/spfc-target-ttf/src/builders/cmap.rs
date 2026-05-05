@@ -1,5 +1,4 @@
 use super::Process;
-use crate::builders::AUTOINSERTED_CHARS_COUNT;
 use anyhow::Result;
 use std::collections::BTreeMap;
 use write_fonts::tables::cmap::{
@@ -7,15 +6,21 @@ use write_fonts::tables::cmap::{
 };
 
 pub fn push_cmap_table(process: &mut Process) -> Result<()> {
-    let mut sorted_chars: Vec<char> = process.pixmap_pairs.keys().copied().collect();
-    sorted_chars.sort_unstable(); // Ensure characters are sorted for consistent glyph ID assignment
-
-    // Create a mapping from char to its assigned glyph ID
-    let char_to_glyph_id: BTreeMap<char, u16> = sorted_chars
+    let char_to_glyph_id: BTreeMap<char, u16> = process.pixmap_pairs
         .iter()
         .enumerate()
-        .map(|(i, &ch)| (ch, AUTOINSERTED_CHARS_COUNT + i as u16))
+        .filter_map(|(_i, (s, _))| {
+            let mut cs = s.chars();
+            let c = cs.next()?;
+            if cs.next().is_none() {
+                process.get_glyph_id(s).map(|gid| (c, gid))
+            } else {
+                None
+            }
+        })
         .collect();
+
+    let sorted_chars: Vec<char> = char_to_glyph_id.keys().copied().collect();
 
     // Format 4 (BMP only, for legacy compatibility)
     let mut end_codes_f4 = vec![];

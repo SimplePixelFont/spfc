@@ -15,3 +15,4 @@ spf = { version = "0.8.0-alpha.0", default-features = false, features = ["std"] 
 render_spf = { git = "https://github.com/SimplePixelFont/render-spf.git" }
 anyhow.workspace = true
 chrono = "0.4.43"
+unicode-segmentation = "1.12.0"
