@@ -1823,6 +1823,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "spfc-target-p8"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "render_spf",
+ "spf",
+ "spfc-abi",
+]
+
+[[package]]
 name = "spfc-target-ttf"
 version = "0.1.0"
 dependencies = [

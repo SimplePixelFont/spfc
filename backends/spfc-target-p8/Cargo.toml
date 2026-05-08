@@ -1,0 +1,13 @@
+[package]
+name = "spfc-target-p8"
+version = "0.1.0"
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+spfc-abi = { path = "../../spfc-abi" }
+spf.workspace = true
+bitvec = "1.0.1"
+render_spf.workspace = true

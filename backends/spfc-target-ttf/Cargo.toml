@@ -11,8 +11,8 @@ spfc-abi = { path = "../../spfc-abi" }
 write-fonts = "=0.45.0"
 kurbo = "0.13.0"
 bitvec = "1.0.1"
-spf = { version = "0.8.0-alpha.0", default-features = false, features = ["std"] }
-render_spf = { git = "https://github.com/SimplePixelFont/render-spf.git" }
+spf.workspace = true
+render_spf.workspace = true
 anyhow.workspace = true
 chrono = "0.4.43"
 unicode-segmentation = "1.12.0"
