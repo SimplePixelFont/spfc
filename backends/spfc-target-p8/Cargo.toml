@@ -11,3 +11,4 @@ spfc-abi = { path = "../../spfc-abi" }
 spf.workspace = true
 bitvec = "1.0.1"
 render_spf.workspace = true
+anyhow.workspace = true

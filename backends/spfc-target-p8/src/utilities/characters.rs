@@ -4,6 +4,7 @@
 pub struct P8Char {
     pub id: u8,
     pub symbol: &'static str,
+    #[allow(dead_code)]
     pub description: &'static str,
 }
 
@@ -206,3 +207,7 @@ const fn generate_character_set() -> [P8Char; 256] {
 }
 
 pub const P8SCII_CHARSET: [P8Char; 256] = generate_character_set();
+
+pub fn get_character_by_symbol(symbol: &str) -> Option<&P8Char> {
+    P8SCII_CHARSET.iter().find(|c| c.symbol == symbol)
+}

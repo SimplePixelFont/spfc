@@ -33,8 +33,14 @@ fn compile(options: CompileOptions) -> CompileResult {
     process.manufacturer = font.author.clone();
     process.pixmap_pairs = create_pixmap_pairs(&layout);
 
-    
-    
+    let font_data = create_program_string(&process).unwrap();
+    std::fs::write(&options.output, &font_data).unwrap();
+
+    println!(
+        "Finished writing {} bytes to {}",
+        font_data.len(),
+        options.output
+    );
 
     CompileResult::Success
 }
