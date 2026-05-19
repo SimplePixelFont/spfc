@@ -17,6 +17,16 @@ pub trait ABIRepr {
     type ABI: Sized;
 }
 
+pub trait ABIError {
+    fn into_abi_string(self) -> String;
+}
+
+impl<E: std::fmt::Display> ABIError for E {
+    fn into_abi_string(self) -> String {
+        self.to_string()
+    }
+}
+
 impl<S: ToString> ABIRepr for BackendInfo<S> {
     type ABI = ABIBackendInfo;
 }

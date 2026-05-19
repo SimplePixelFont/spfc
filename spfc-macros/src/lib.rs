@@ -6,12 +6,12 @@ use syn::{
 };
 
 // ---------------------------------------------------------------------------
-// #[plugin_fn]
+// #[export]
 // ---------------------------------------------------------------------------
 //
 // Transforms:
 //
-//   #[plugin_fn]
+//   #[export]
 //   pub fn process(input: MyInput, cfg: MyConfig) -> Result<MyOutput, MyError> {
 //       // ergonomic Rust body
 //   }
@@ -22,24 +22,24 @@ use syn::{
 //   // and panic safety.
 //   #[no_mangle]
 //   pub extern "C" fn process(
-//       input: <MyInput as ::plugin_api::CRepr>::C,
-//       cfg:   <MyConfig as ::plugin_api::CRepr>::C,
-//   ) -> ::plugin_api::CResult {
+//       input: <MyInput as ::plugin_api::ABIRepr>::ABI,
+//       cfg:   <MyConfig as ::plugin_api::ABIRepr>::ABI,
+//   ) -> ::plugin_api::ABIResult {
 //       // catch_unwind so panics never unwind across the FFI boundary
 //       let __result = ::std::panic::catch_unwind(|| {
 //           let input = match MyInput::try_from(input) { Ok(v) => v, Err(e) => return ... };
 //           let cfg   = match MyConfig::try_from(cfg)   { Ok(v) => v, Err(e) => return ... };
 //           match _inner_process(input, cfg) {
 //               Ok(out) => match ::std::convert::TryInto::try_into(out) {
-//                   Ok(c)  => ::plugin_api::CResult::ok(c),
-//                   Err(e) => ::plugin_api::CResult::err(e.to_string()),
+//                   Ok(c)  => ::plugin_api::ABIResult::ok(c),
+//                   Err(e) => ::plugin_api::ABIResult::err(e.to_string()),
 //               },
-//               Err(e) => ::plugin_api::CResult::err(e.to_string()),
+//               Err(e) => ::plugin_api::ABIResult::err(e.to_string()),
 //           }
 //       });
 //       match __result {
 //           Ok(r)  => r,
-//           Err(_) => ::plugin_api::CResult::err("plugin panicked"),
+//           Err(_) => ::plugin_api::ABIResult::err("plugin panicked"),
 //       }
 //   }
 //
@@ -146,10 +146,14 @@ pub fn export(_attr: TokenStream, item: TokenStream) -> TokenStream {
                                 as ::std::convert::TryFrom<#ok_type>
                             >::try_from(__out) {
                                 Ok(__c)  => ::spfc_abi::ABIResult::ok(__c),
-                                Err(__e) => ::spfc_abi::ABIResult::err(__e.to_string()),
+                                Err(__e) => ::spfc_abi::ABIResult::err(
+                                    ::spfc_abi::ABIError::into_abi_string(__e)
+                                ),
                             }
                         },
-                        Err(__e) => ::spfc_abi::ABIResult::err(__e.to_string()),
+                        Err(__e) => ::spfc_abi::ABIResult::err(
+                            ::spfc_abi::ABIError::into_abi_string(__e)
+                        ),
                     }
                 }
             } else {
@@ -161,7 +165,9 @@ pub fn export(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         as ::std::convert::TryFrom<#ty>
                     >::try_from(__out) {
                         Ok(__c)  => ::spfc_abi::ABIResult::ok(__c),
-                        Err(__e) => ::spfc_abi::ABIResult::err(__e.to_string()),
+                        Err(__e) => ::spfc_abi::ABIResult::err(
+                            ::spfc_abi::ABIError::into_abi_string(__e)
+                        ),
                     }
                 }
             }

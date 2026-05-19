@@ -4,16 +4,21 @@
         "cmap",
         "codepoints",
         "colr",
+        "DOGRAY",
         "glyf",
+        "GRIDFIT",
         "gsub",
         "hhea",
         "hmtx",
+        "kurbo",
         "loca",
         "maxp",
+        "notdef",
         "panose",
         "pixmap",
         "pixmaps",
         "ppem",
-        "spfc"
+        "spfc",
+        "Subtable"
     ]
 }

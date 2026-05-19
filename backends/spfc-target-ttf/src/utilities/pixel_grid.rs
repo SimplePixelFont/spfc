@@ -1,3 +1,4 @@
+use anyhow::Result;
 use kurbo::BezPath;
 use std::collections::HashMap;
 
@@ -30,7 +31,7 @@ impl PixelGrid {
         }
     }
 
-    pub fn to_bezpath(&self, descender_pixels: usize) -> BezPath {
+    pub fn to_bezpath(&self, descender_pixels: usize) -> Result<BezPath> {
         let ps = self.pixel_size;
         let h = self.height as i32;
         let baseline_offset = -(descender_pixels as f64 * ps);
@@ -110,7 +111,7 @@ impl PixelGrid {
             path.close_path();
         }
 
-        path
+        Ok(path)
     }
 
     fn pixel_at(&self, x: i32, y: i32) -> bool {

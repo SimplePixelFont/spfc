@@ -1,5 +1,5 @@
 use core::ffi::*;
-pub const CURRENT_ABI_VERSION: u32 = 1;
+pub const CURRENT_ABI_VERSION: u32 = 2;
 
 pub mod convertors;
 pub mod rust_types;

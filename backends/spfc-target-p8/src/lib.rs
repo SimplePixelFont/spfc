@@ -1,3 +1,4 @@
+use anyhow::Error;
 use spf::core::layout_from_data;
 use spfc_abi::{BackendInfo, CURRENT_ABI_VERSION, CompileOptions, CompileResult, PluginOption};
 
@@ -21,11 +22,11 @@ fn get_plugin_options() -> Vec<PluginOption> {
 }
 
 #[spfc_abi::export]
-fn compile(options: CompileOptions) -> CompileResult {
-    let data = std::fs::read(&options.input).unwrap();
-    let layout = layout_from_data(&data).unwrap();
-    let font_table = layout.font_tables.first().unwrap();
-    let font = font_table.fonts.first().unwrap();
+fn compile(options: CompileOptions) -> Result<CompileResult, Error> {
+    let data = std::fs::read(&options.input)?;
+    let layout = layout_from_data(&data).expect("Failed to parse input data into layout");
+    let font_table = layout.font_tables.first().expect("No font tables found");
+    let font = font_table.fonts.first().expect("No fonts found in font table");
 
     let mut process = Process::default();
     process.family_name = font.name.clone();
@@ -33,8 +34,8 @@ fn compile(options: CompileOptions) -> CompileResult {
     process.manufacturer = font.author.clone();
     process.pixmap_pairs = create_pixmap_pairs(&layout);
 
-    let font_data = create_program_string(&process).unwrap();
-    std::fs::write(&options.output, &font_data).unwrap();
+    let font_data = create_program_string(&process)?;
+    std::fs::write(&options.output, &font_data)?;
 
     println!(
         "Finished writing {} bytes to {}",
@@ -42,5 +43,5 @@ fn compile(options: CompileOptions) -> CompileResult {
         options.output
     );
 
-    CompileResult::Success
+    Ok(CompileResult::Success)
 }

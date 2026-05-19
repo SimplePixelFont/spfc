@@ -1,10 +1,26 @@
 use spf::core::layout_from_data;
 use spfc_abi::{BackendInfo, CURRENT_ABI_VERSION, CompileOptions, CompileResult, PluginOption};
+use anyhow::Result;
 
 mod builders;
 use builders::*;
 mod utilities;
 use utilities::*;
+
+// Source - https://stackoverflow.com/a/62759540
+// Posted by vallentin, modified by community. See post 'Timeline' for change history
+// Retrieved 2026-05-19, License - CC BY-SA 4.0
+#[non_exhaustive]
+struct ExtraArguments;
+
+impl ExtraArguments {
+    pub const COPYRIGHT: &'static str = "copyright";
+    pub const VENDOR_URL: &'static str = "vendor-url";
+    pub const LICENSE_DESCRIPTION: &'static str = "license-description";
+    pub const PIXEL_SIZE: &'static str = "pixel-size";
+    pub const DESCENDER_PIXELS: &'static str = "descender-pixels";
+}
+
 
 #[spfc_abi::export]
 fn get_backend_info() -> BackendInfo {
@@ -19,27 +35,27 @@ fn get_backend_info() -> BackendInfo {
 fn get_plugin_options() -> Vec<PluginOption> {
     vec![
         PluginOption {
-            name: "copyright",
+            name: ExtraArguments::COPYRIGHT,
             description: "Set the font's copyright metadata",
             default_value: "Copyright (c) 2026 SimplePixelFont",
         },
         PluginOption {
-            name: "vendor-url",
+            name: ExtraArguments::VENDOR_URL,
             description: "Set the font's vendor URL metadata",
             default_value: "https://github.com/SimplePixelFont",
         },
         PluginOption {
-            name: "license-description",
+            name: ExtraArguments::LICENSE_DESCRIPTION,
             description: "Set the font's license description metadata",
             default_value: "Licensed under the Apache License, Version 2.0",
         },
         PluginOption {
-            name: "pixel-size",
+            name: ExtraArguments::PIXEL_SIZE,
             description: "Pixel size in font units",
             default_value: "64",
         },
         PluginOption {
-            name: "descender-pixels",
+            name: ExtraArguments::DESCENDER_PIXELS,
             description: "Descender size in pixels",
             default_value: "0",
         },
@@ -47,33 +63,37 @@ fn get_plugin_options() -> Vec<PluginOption> {
 }
 
 #[spfc_abi::export]
-fn compile(options: CompileOptions) -> CompileResult {
-    let data = std::fs::read(&options.input).unwrap();
-    let layout = layout_from_data(&data).unwrap();
-    let font_table = layout.font_tables.first().unwrap();
-    let font = font_table.fonts.first().unwrap();
+fn compile(options: CompileOptions) -> Result<CompileResult> {
+    let data = std::fs::read(&options.input)?;
+    let layout = layout_from_data(&data).expect("Failed to parse input data into layout");
+    let font_table = layout.font_tables.first().expect("No font tables found");
+    let font = font_table.fonts.first().expect("No fonts found in font table");
 
     let mut process = Process::default();
     process.family_name = font.name.clone();
     process.family_version = font.version as f64;
-    process.copyright = options.get_extra_argument("copyright").unwrap().to_owned();
     process.manufacturer = font.author.clone();
-    process.vendor_url = options.get_extra_argument("vendor-url").unwrap().to_owned();
-    process.license_description = options
-        .get_extra_argument("license-description")
-        .unwrap()
-        .to_owned();
 
-    process.target_pixel_size = options
-        .get_extra_argument("pixel-size")
-        .unwrap()
-        .parse::<i16>()
-        .unwrap();
-    process.descender_pixels = options
-        .get_extra_argument("descender-pixels")
-        .unwrap()
-        .parse::<i16>()
-        .unwrap();
+    if let Some(copyright) = options
+        .get_extra_argument(ExtraArguments::COPYRIGHT) {
+            process.copyright = copyright.to_string();
+        }
+    if let Some(vendor_url) = options
+        .get_extra_argument(ExtraArguments::VENDOR_URL) {
+            process.vendor_url = vendor_url.to_string();
+        }
+    if let Some(license_description) = options
+        .get_extra_argument(ExtraArguments::LICENSE_DESCRIPTION) {
+            process.license_description = license_description.to_string();
+        }
+    if let Some(target_pixel_size) = options
+        .get_extra_argument(ExtraArguments::PIXEL_SIZE) {
+            process.target_pixel_size = target_pixel_size.parse::<i16>()?;
+        }
+    if let Some(descender_pixels) = options
+        .get_extra_argument(ExtraArguments::DESCENDER_PIXELS) {
+            process.descender_pixels = descender_pixels.parse::<i16>()?;
+        }
 
     process.pixmap_pairs = create_pixmap_pairs(&layout);
     process.max_pixel_width = max_width(&process.pixmap_pairs);
@@ -90,18 +110,18 @@ fn compile(options: CompileOptions) -> CompileResult {
     process.update_max_points_and_contours();
     process.is_monospaced = is_monospaced(&process.pixmap_pairs);
 
-    push_head_table(&mut process).unwrap();
-    push_hhea_table(&mut process).unwrap();
-    push_maxp_table(&mut process).unwrap();
-    push_os2_table(&mut process).unwrap();
-    push_name_table(&mut process).unwrap();
-    push_post_table(&mut process).unwrap();
-    push_glyf_loca_tables(&mut process).unwrap();
-    push_hmtx_table(&mut process).unwrap();
-    push_cmap_table(&mut process).unwrap();
-    push_gasp_table(&mut process).unwrap();
-    push_gsub_table(&mut process).unwrap();
-    push_colr_cpal_tables(&mut process).unwrap();
+    push_head_table(&mut process)?;
+    push_hhea_table(&mut process)?;
+    push_maxp_table(&mut process)?;
+    push_os2_table(&mut process)?;
+    push_name_table(&mut process)?;
+    push_post_table(&mut process)?;
+    push_glyf_loca_tables(&mut process)?;
+    push_hmtx_table(&mut process)?;
+    push_cmap_table(&mut process)?;
+    push_gasp_table(&mut process)?;
+    push_gsub_table(&mut process)?;
+    push_colr_cpal_tables(&mut process)?;
 
     process.builder.add_raw(
         write_fonts::types::Tag::new(b"prep"),
@@ -113,16 +133,16 @@ fn compile(options: CompileOptions) -> CompileResult {
     // which can be useful to debug.
     process.builder.add_raw(
         write_fonts::types::Tag::new(b"bspf"),
-        spf::core::layout_to_data(&layout).unwrap(),
+        spf::core::layout_to_data(&layout).expect("Could not add bspf table due to serialization error"),
     );
 
     let font_data = process.builder.build();
-    std::fs::write(&options.output, &font_data).unwrap();
+    std::fs::write(&options.output, &font_data)?;
 
     println!(
         "Finished writing {} bytes to {}",
         font_data.len(),
         options.output
     );
-    CompileResult::Success
+    Ok(CompileResult::Success)
 }

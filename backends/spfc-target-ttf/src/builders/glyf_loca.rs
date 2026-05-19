@@ -1,7 +1,7 @@
 use crate::utilities::PixelGrid;
 
 use super::Process;
-use anyhow::Result;
+use anyhow::{Error, Result};
 use kurbo::BezPath;
 use write_fonts::tables::glyf::{GlyfLocaBuilder, SimpleGlyph};
 
@@ -21,14 +21,20 @@ pub fn push_glyf_loca_tables(process: &mut Process) -> Result<()> {
         process.max_pixel_height as usize - process.descender_pixels as usize - 1,
     );
     let notdef =
-        SimpleGlyph::from_bezpath(&notdef.to_bezpath(process.descender_pixels as usize)).unwrap();
+        SimpleGlyph::from_bezpath(&notdef.to_bezpath(process.descender_pixels as usize)?).map_err(
+            |x| Error::msg(format!("{x:?}"))
+        )?;
     glyf_builder.add_glyph(&notdef)?;
 
-    let null_glyph = SimpleGlyph::from_bezpath(&BezPath::new()).unwrap();
+    let null_glyph = SimpleGlyph::from_bezpath(&BezPath::new()).map_err(
+            |x| Error::msg(format!("{x:?}"))
+        )?;
     glyf_builder.add_glyph(&null_glyph)?;
 
     // Glyph 2: nonmarkingreturn (empty glyph for tab/return)
-    let nonmarkingreturn = SimpleGlyph::from_bezpath(&BezPath::new()).unwrap();
+    let nonmarkingreturn = SimpleGlyph::from_bezpath(&BezPath::new()).map_err(
+            |x| Error::msg(format!("{x:?}"))
+        )?;
     glyf_builder.add_glyph(&nonmarkingreturn)?;
 
     for (_, pixmap) in &process.pixmap_pairs {
@@ -37,7 +43,7 @@ pub fn push_glyf_loca_tables(process: &mut Process) -> Result<()> {
         let glyph = pixmap.clone().into_simple_glyph(
             process.target_pixel_size as u16,
             process.descender_pixels as usize,
-        );
+        )?;
         glyf_builder.add_glyph(&glyph)?;
     }
 
@@ -45,7 +51,7 @@ pub fn push_glyf_loca_tables(process: &mut Process) -> Result<()> {
         let glyph = pixmap.clone().into_simple_glyph(
             process.target_pixel_size as u16,
             process.descender_pixels as usize,
-        );
+        )?;
         glyf_builder.add_glyph(&glyph)?;
     }
 
