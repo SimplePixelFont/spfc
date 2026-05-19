@@ -1,4 +1,4 @@
-use anyhow::Error;
+use anyhow::{Error, anyhow};
 use spf::core::layout_from_data;
 use spfc_abi::{BackendInfo, CURRENT_ABI_VERSION, CompileOptions, CompileResult, PluginOption};
 
@@ -24,9 +24,16 @@ fn get_plugin_options() -> Vec<PluginOption> {
 #[spfc_abi::export]
 fn compile(options: CompileOptions) -> Result<CompileResult, Error> {
     let data = std::fs::read(&options.input)?;
-    let layout = layout_from_data(&data).expect("Failed to parse input data into layout");
-    let font_table = layout.font_tables.first().expect("No font tables found");
-    let font = font_table.fonts.first().expect("No fonts found in font table");
+    let layout = layout_from_data(&data)
+        .map_err(|e| anyhow!("Failed to parse input data into layout: {e:?}"))?;
+    let font_table = layout
+        .font_tables
+        .first()
+        .ok_or_else(|| anyhow!("No font tables found"))?;
+    let font = font_table
+        .fonts
+        .first()
+        .ok_or_else(|| anyhow!("No fonts found in font table"))?;
 
     let mut process = Process::default();
     process.family_name = font.name.clone();

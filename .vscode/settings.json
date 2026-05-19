@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
         "bezpath",
+        "bspf",
         "cmap",
         "codepoints",
         "colr",
@@ -13,11 +14,14 @@
         "kurbo",
         "loca",
         "maxp",
+        "nonmarkingreturn",
         "notdef",
         "panose",
+        "PICO",
         "pixmap",
         "pixmaps",
         "ppem",
+        "Renderable",
         "spfc",
         "Subtable"
     ]

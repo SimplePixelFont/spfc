@@ -1,6 +1,6 @@
 use spf::core::layout_from_data;
 use spfc_abi::{BackendInfo, CURRENT_ABI_VERSION, CompileOptions, CompileResult, PluginOption};
-use anyhow::Result;
+use anyhow::{Result, anyhow, ensure};
 
 mod builders;
 use builders::*;
@@ -65,9 +65,16 @@ fn get_plugin_options() -> Vec<PluginOption> {
 #[spfc_abi::export]
 fn compile(options: CompileOptions) -> Result<CompileResult> {
     let data = std::fs::read(&options.input)?;
-    let layout = layout_from_data(&data).expect("Failed to parse input data into layout");
-    let font_table = layout.font_tables.first().expect("No font tables found");
-    let font = font_table.fonts.first().expect("No fonts found in font table");
+    let layout = layout_from_data(&data)
+        .map_err(|e| anyhow!("Failed to parse input data into layout: {e:?}"))?;
+    let font_table = layout
+        .font_tables
+        .first()
+        .ok_or_else(|| anyhow!("No font tables found"))?;
+    let font = font_table
+        .fonts
+        .first()
+        .ok_or_else(|| anyhow!("No fonts found in font table"))?;
 
     let mut process = Process::default();
     process.family_name = font.name.clone();
@@ -88,12 +95,20 @@ fn compile(options: CompileOptions) -> Result<CompileResult> {
         }
     if let Some(target_pixel_size) = options
         .get_extra_argument(ExtraArguments::PIXEL_SIZE) {
-            process.target_pixel_size = target_pixel_size.parse::<i16>()?;
+            let parsed = target_pixel_size.parse::<i16>()?;
+            ensure!(parsed > 0, "`pixel-size` must be greater than 0");
+            process.target_pixel_size = parsed;
         }
     if let Some(descender_pixels) = options
         .get_extra_argument(ExtraArguments::DESCENDER_PIXELS) {
-            process.descender_pixels = descender_pixels.parse::<i16>()?;
+            let parsed = descender_pixels.parse::<i16>()?;
+            ensure!(parsed >= 0, "`descender-pixels` must be non-negative");
+            process.descender_pixels = parsed;
         }
+    ensure!(
+        process.descender_pixels < process.max_pixel_height,
+        "`descender-pixels` must be smaller than the glyph height"
+    );
 
     process.pixmap_pairs = create_pixmap_pairs(&layout);
     process.max_pixel_width = max_width(&process.pixmap_pairs);
@@ -107,7 +122,7 @@ fn compile(options: CompileOptions) -> Result<CompileResult> {
     process.add_required_whitespace(); // a separate validation layer might be needed later. Although really the only character that needs fixing and only if space exists :)
     process.ensure_ligature_components();
     process.prepare_color_font_data(&layout);
-    process.update_max_points_and_contours();
+    process.update_max_points_and_contours()?;
     process.is_monospaced = is_monospaced(&process.pixmap_pairs);
 
     push_head_table(&mut process)?;
