@@ -1,19 +1,28 @@
 {
     "cSpell.words": [
         "bezpath",
+        "bspf",
         "cmap",
         "codepoints",
         "colr",
+        "DOGRAY",
         "glyf",
+        "GRIDFIT",
         "gsub",
         "hhea",
         "hmtx",
+        "kurbo",
         "loca",
         "maxp",
+        "nonmarkingreturn",
+        "notdef",
         "panose",
+        "PICO",
         "pixmap",
         "pixmaps",
         "ppem",
-        "spfc"
+        "Renderable",
+        "spfc",
+        "Subtable"
     ]
 }

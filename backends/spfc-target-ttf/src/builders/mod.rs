@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use anyhow::Result;
 use render_spf::PixelRef;
 use spf::core::Layout;
 
@@ -255,7 +256,7 @@ impl Process<'_> {
         let dynamic_glyphs = u16::try_from(dynamic_glyphs).unwrap_or(u16::MAX);
         AUTOINSERTED_CHARS_COUNT.saturating_add(dynamic_glyphs)
     }
-    pub fn update_max_points_and_contours(&mut self) {
+    pub fn update_max_points_and_contours(&mut self) -> Result<()> {
         self.max_points = 0;
         self.max_contours = 0;
 
@@ -267,7 +268,7 @@ impl Process<'_> {
             let glyph = pixmap.clone().into_simple_glyph(
                 self.target_pixel_size as u16,
                 self.descender_pixels as usize,
-            );
+            )?;
 
             let mut points = 0;
             for contour in &glyph.contours {
@@ -277,5 +278,6 @@ impl Process<'_> {
             self.max_points = self.max_points.max(points);
             self.max_contours = self.max_contours.max(contours);
         }
+        Ok(())
     }
 }

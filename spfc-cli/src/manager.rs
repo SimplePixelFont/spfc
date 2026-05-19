@@ -81,7 +81,7 @@ impl PluginManager {
         fs::create_dir_all(&plugin_dir)?;
 
         let mut headers = HeaderMap::default();
-        headers.insert(USER_AGENT, "spfc-cli".parse().unwrap());
+        headers.insert(USER_AGENT, "spfc-cli".parse()?);
 
         Ok(Self {
             plugin_dir,

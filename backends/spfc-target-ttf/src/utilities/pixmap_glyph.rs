@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use anyhow::{Error, Result};
 use bitvec::{field::BitField, order::Lsb0, view::BitView};
 use render_spf::{
     ColorControl, PixelRef, RenderableTexture, cache::{TextureBuilder, generic_update_cache}
@@ -107,14 +108,14 @@ pub struct PixmapGlyph {
 }
 
 impl PixmapGlyph {
-    pub fn into_simple_glyph(self, pixel_size: u16, descender_pixels: usize) -> SimpleGlyph {
-        glyph_from_mask(
+    pub fn into_simple_glyph(self, pixel_size: u16, descender_pixels: usize) -> Result<SimpleGlyph> {
+        Ok(glyph_from_mask(
             self.width,
             self.height,
             &self.opaque_mask,
             pixel_size,
             descender_pixels,
-        )
+        )?)
     }
 
     pub fn from_mask(source: &PixmapGlyph, mask: Vec<bool>) -> Self {
@@ -163,7 +164,7 @@ fn glyph_from_mask(
     mask: &[bool],
     pixel_size: u16,
     descender_pixels: usize,
-) -> SimpleGlyph {
+) -> Result<SimpleGlyph> {
     let pixel_grid = PixelGrid {
         width: width as usize,
         height: height as usize,
@@ -173,8 +174,12 @@ fn glyph_from_mask(
             .collect(),
         pixel_size: pixel_size as f64,
     };
-    let bez_path = pixel_grid.to_bezpath(descender_pixels);
-    SimpleGlyph::from_bezpath(&bez_path).unwrap()
+    let bez_path = pixel_grid.to_bezpath(descender_pixels)?;
+    Ok(
+        SimpleGlyph::from_bezpath(&bez_path).map_err(
+            |x| Error::msg(format!("{x:?}"))
+        )?
+    )
 }
 
 fn calculate_left_bearing(pixels: &[bool], width: usize, height: usize) -> i16 {

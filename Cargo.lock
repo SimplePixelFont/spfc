@@ -1808,14 +1808,14 @@ dependencies = [
 
 [[package]]
 name = "spfc-abi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "spfc-macros",
 ]
 
 [[package]]
 name = "spfc-macros"
-version = "0.0.1"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1835,7 +1835,7 @@ dependencies = [
 
 [[package]]
 name = "spfc-target-ttf"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "bitvec",

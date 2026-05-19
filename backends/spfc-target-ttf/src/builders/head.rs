@@ -13,8 +13,7 @@ fn unix_to_mac_epoch(unix_time: u64) -> i64 {
 
 pub fn push_head_table(process: &mut Process) -> Result<()> {
     let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .duration_since(UNIX_EPOCH)?
         .as_secs();
     let mac_timestamp = unix_to_mac_epoch(now);
 

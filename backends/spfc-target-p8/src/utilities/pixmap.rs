@@ -28,7 +28,7 @@ impl TextureBuilder<PixmapGlyph> for PixmapGlyphTextureBuilder {
         let bits_per_pixel = pixmap_table
             .constant_bits_per_pixel
             .or(pixmap.custom_bits_per_pixel)
-            .unwrap();
+            .unwrap_or(1);
 
         let advance_x = character.advance_x.unwrap_or(width);
         if advance_x != width {
