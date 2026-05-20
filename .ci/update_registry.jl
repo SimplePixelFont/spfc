@@ -44,7 +44,7 @@ println("Registry written.")
 try
     run(`git config user.name  "github-actions[bot]"`)
     run(`git config user.email "github-actions[bot]@users.noreply.github.com"`)
-    run(`git checkout -b chore/update-registry`)
+    run(`git switch -c chore/update-registry`)
     run(`git add $registry_path`)
     run(`git commit -m "update registry for $target_name v$version"`)
     run(`git push -u origin chore/update-registry`)
