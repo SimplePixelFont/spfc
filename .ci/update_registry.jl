@@ -48,8 +48,12 @@ try
     run(`git add $registry_path`)
     run(`git commit -m "update registry for $target_name v$version"`)
     run(`git push -u origin chore/update-registry`)
-    run(`gh pr create --title "Update registry for $target_name v$version"`)
-    run(`gh pr merge --auto --merge`)
+    # Capture the PR number from the create output
+    pr_output = read(`gh pr create --title "Update registry for $target_name v$version" --json number -q .number`, String)
+    pr_number = strip(pr_output)
+    
+    # Enable auto-merge with the PR number
+    run(`gh pr merge $pr_number --auto --merge`)
     println("✅ Registry pushed.")
 catch e
     println("⚠️  Could not push registry: $e")
