@@ -2,10 +2,11 @@
   "targets": {
     "ttf": {
       "description": "Plugin target for ttf",
-      "latest": "0.1.0",
+      "latest": "0.1.1",
       "repo": "SimplePixelFont/spfc",
       "versions": [
-        "0.1.0"
+        "0.1.0",
+        "0.1.1"
       ]
     }
   }
