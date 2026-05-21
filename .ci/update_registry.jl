@@ -48,7 +48,7 @@ try
     run(`git add $registry_path`)
     run(`git commit -m "update registry for $target_name v$version"`)
     run(`git push -u origin chore/update-registry`)
-    run(`gh pr create --title "Update registry for $target_name v$version"`)
+    run(`gh pr create --fill --title "Update registry for $target_name v$version"`)
     run(`gh pr merge --auto --merge --delete-branch`)
     println("✅ Registry pushed.")
 catch e
