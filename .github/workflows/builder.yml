@@ -188,5 +188,6 @@ jobs:
       - name: Update registry
         run: julia .ci/update_registry.jl
         env:
+          GH_TOKEN: ${{ github.token }}
           TARGET_NAME: ${{ needs.parse-tag.outputs.target_name }}
           VERSION:     ${{ needs.parse-tag.outputs.version }}
