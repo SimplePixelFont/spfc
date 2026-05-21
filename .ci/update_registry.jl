@@ -49,7 +49,7 @@ try
     run(`git commit -m "update registry for $target_name v$version"`)
     run(`git push -u origin chore/update-registry`)
     run(`gh pr create --title "Update registry for $target_name v$version"`)
-    run(`gh pr merge`)
+    run(`gh pr merge --auto --merge`)
     println("✅ Registry pushed.")
 catch e
     println("⚠️  Could not push registry: $e")
